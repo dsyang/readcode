@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSelectionStore } from "../../stores/selectionStore";
 import type { CommitInfo } from "../../api/types";
 
@@ -22,6 +23,34 @@ function laneColor(index: number): string {
 	return LANE_COLORS[index % LANE_COLORS.length];
 }
 
+/** Active lanes entering each row: lane -> color index */
+type ActiveLanes = Map<number, number>;
+
+/**
+ * Walk commits top-to-bottom and compute which lanes have a line
+ * entering from above at each row.
+ */
+function computeActiveLanes(commits: CommitInfo[]): ActiveLanes[] {
+	const result: ActiveLanes[] = [];
+	// Lanes that currently have a downward line running through them
+	const active = new Map<number, number>();
+
+	for (const commit of commits) {
+		// Snapshot the incoming active lanes for this row
+		result.push(new Map(active));
+
+		// This commit's node consumes its lane
+		active.delete(commit.lane);
+
+		// Its edges create new active lanes going down
+		for (const edge of commit.edges) {
+			active.set(edge.to_lane, edge.color);
+		}
+	}
+
+	return result;
+}
+
 export function CommitList() {
 	const commits = useSelectionStore((s) => s.commits);
 	const repoPath = useSelectionStore((s) => s.repoPath);
@@ -29,6 +58,8 @@ export function CommitList() {
 	const includeWorkingTree = useSelectionStore((s) => s.includeWorkingTree);
 	const handleCommitClick = useSelectionStore((s) => s.handleCommitClick);
 	const toggleWorkingTree = useSelectionStore((s) => s.toggleWorkingTree);
+
+	const activeLanesPerRow = useMemo(() => computeActiveLanes(commits), [commits]);
 
 	if (!repoPath) {
 		return (
@@ -77,11 +108,12 @@ export function CommitList() {
 				</div>
 			</div>
 
-			{commits.map((commit) => (
+			{commits.map((commit, row) => (
 				<CommitRow
 					key={commit.oid}
 					commit={commit}
 					graphWidth={graphWidth}
+					activeLanes={activeLanesPerRow[row]}
 					isSelected={selectedOids.has(commit.oid)}
 					onClick={handleCommitClick}
 				/>
@@ -93,11 +125,12 @@ export function CommitList() {
 interface CommitRowProps {
 	commit: CommitInfo;
 	graphWidth: number;
+	activeLanes: ActiveLanes;
 	isSelected: boolean;
 	onClick: (oid: string, metaKey: boolean, shiftKey: boolean) => void;
 }
 
-function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) {
+function CommitRow({ commit, graphWidth, activeLanes, isSelected, onClick }: CommitRowProps) {
 	const date = new Date(commit.timestamp * 1000);
 	const timeStr = formatRelativeDate(date);
 	const authorDisplay = formatAuthor(commit.author_name, commit.author_email);
@@ -115,6 +148,32 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 			{/* DAG graph column */}
 			<div className="flex-shrink-0" style={{ width: graphWidth }}>
 				<svg width={graphWidth} height={ROW_HEIGHT}>
+					{/* Pass-through lines for active lanes that aren't this commit's lane */}
+					{Array.from(activeLanes.entries()).map(([lane, color]) => {
+						if (lane === commit.lane) return null;
+						const x = lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
+						return (
+							<line
+								key={`through-${lane}`}
+								x1={x} y1={0} x2={x} y2={ROW_HEIGHT}
+								stroke={laneColor(color)} strokeWidth={2}
+							/>
+						);
+					})}
+
+					{/* Incoming line on this commit's lane (top -> node center) */}
+					{activeLanes.has(commit.lane) && (
+						<line
+							x1={commit.lane * LANE_WIDTH + LANE_WIDTH / 2 + 4}
+							y1={0}
+							x2={commit.lane * LANE_WIDTH + LANE_WIDTH / 2 + 4}
+							y2={ROW_HEIGHT / 2}
+							stroke={laneColor(activeLanes.get(commit.lane)!)}
+							strokeWidth={2}
+						/>
+					)}
+
+					{/* Edges from node center down to parents */}
 					{commit.edges.map((edge, i) => {
 						const x1 = edge.from_lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
 						const x2 = edge.to_lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
@@ -125,7 +184,7 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 						if (x1 === x2) {
 							return (
 								<line
-									key={i}
+									key={`edge-${i}`}
 									x1={x1} y1={y1} x2={x2} y2={y2}
 									stroke={color} strokeWidth={2}
 								/>
@@ -134,7 +193,7 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 							const midY = (y1 + y2) / 2;
 							return (
 								<path
-									key={i}
+									key={`edge-${i}`}
 									d={`M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`}
 									stroke={color} strokeWidth={2} fill="none"
 								/>
@@ -142,21 +201,7 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 						}
 					})}
 
-					{Array.from({ length: commit.lane_count }, (_, lane) => {
-						if (lane === commit.lane) {
-							const x = lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
-							return (
-								<line
-									key={`pass-${lane}`}
-									x1={x} y1={0} x2={x} y2={ROW_HEIGHT / 2}
-									stroke={laneColor(commit.edges.length > 0 ? commit.edges[0].color : lane)}
-									strokeWidth={2}
-								/>
-							);
-						}
-						return null;
-					})}
-
+					{/* Commit node */}
 					<circle
 						cx={commit.lane * LANE_WIDTH + LANE_WIDTH / 2 + 4}
 						cy={ROW_HEIGHT / 2}
@@ -212,8 +257,6 @@ function formatAuthor(name: string, email: string): string {
 }
 
 function extractGitHubUsername(email: string): string | null {
-	// GitHub noreply: 12345+username@users.noreply.github.com
-	// or: username@users.noreply.github.com
 	if (email.endsWith("@users.noreply.github.com")) {
 		const local = email.split("@")[0];
 		const plusIdx = local.indexOf("+");
