@@ -71,6 +71,7 @@ export function CommitList() {
 
 	const maxLanes = Math.max(...commits.map((c) => c.lane_count), 1);
 	const graphWidth = maxLanes * LANE_WIDTH + 8;
+	const headLane = commits.length > 0 ? commits[0].lane : 0;
 
 	return (
 		<div className="overflow-y-auto h-full select-none">
@@ -84,10 +85,17 @@ export function CommitList() {
 				}`}
 				style={{ height: ROW_HEIGHT }}
 			>
-				<div className="flex-shrink-0 flex items-center justify-center" style={{ width: graphWidth }}>
-					<div className={`w-2.5 h-2.5 rounded-sm ${
-						includeWorkingTree ? "bg-amber-400" : "bg-zinc-600 border border-zinc-500"
-					}`} />
+				<div className="flex-shrink-0" style={{ width: graphWidth }}>
+					<svg width={graphWidth} height={ROW_HEIGHT}>
+						<rect
+							x={headLane * LANE_WIDTH + LANE_WIDTH / 2 + 4 - 4}
+							y={ROW_HEIGHT / 2 - 4}
+							width={8} height={8} rx={2}
+							fill={includeWorkingTree ? "#fbbf24" : "#52525b"}
+							stroke={includeWorkingTree ? "none" : "#71717a"}
+							strokeWidth={1}
+						/>
+					</svg>
 				</div>
 				<div className="flex-1 min-w-0 flex flex-col justify-center py-1 pr-3">
 					<div className="flex items-center gap-1.5">
