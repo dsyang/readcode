@@ -1,0 +1,84 @@
+import { useSelectionStore } from "../../stores/selectionStore";
+import type { DiffFile, FileStatus } from "../../api/types";
+
+export function FileList() {
+	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
+	const selectedFilePath = useSelectionStore((s) => s.selectedFilePath);
+	const selectFile = useSelectionStore((s) => s.selectFile);
+
+	if (!mergedDiff) {
+		return (
+			<div className="flex items-center justify-center h-full text-zinc-500 text-sm p-4">
+				Select commits to see changed files
+			</div>
+		);
+	}
+
+	return (
+		<div className="overflow-y-auto h-full">
+			<div className="px-3 py-1.5 text-xs text-zinc-500 border-b border-zinc-700">
+				{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""} changed
+			</div>
+			{mergedDiff.files.map((file) => (
+				<FileRow
+					key={file.path}
+					file={file}
+					isSelected={selectedFilePath === file.path}
+					onSelect={selectFile}
+				/>
+			))}
+		</div>
+	);
+}
+
+interface FileRowProps {
+	file: DiffFile;
+	isSelected: boolean;
+	onSelect: (path: string) => Promise<void>;
+}
+
+function FileRow({ file, isSelected, onSelect }: FileRowProps) {
+	const statusColor = getStatusColor(file.status);
+	const statusChar = file.status[0]; // A, D, M, R, C
+	const fileName = file.path.split("/").pop() ?? file.path;
+	const dirPath = file.path.includes("/")
+		? file.path.substring(0, file.path.lastIndexOf("/"))
+		: "";
+
+	return (
+		<div
+			onClick={() => onSelect(file.path)}
+			className={`flex items-center gap-2 px-3 py-1 cursor-pointer text-sm ${
+				isSelected
+					? "bg-blue-900/40 text-white"
+					: "text-zinc-300 hover:bg-zinc-800"
+			}`}
+		>
+			<span className={`font-mono text-xs font-bold w-4 ${statusColor}`}>
+				{statusChar}
+			</span>
+			<span className="truncate flex-1">
+				<span className="text-zinc-400">{dirPath ? dirPath + "/" : ""}</span>
+				<span>{fileName}</span>
+			</span>
+			<span className="text-xs flex-shrink-0 flex gap-1">
+				{file.additions > 0 && (
+					<span className="text-green-400">+{file.additions}</span>
+				)}
+				{file.deletions > 0 && (
+					<span className="text-red-400">-{file.deletions}</span>
+				)}
+			</span>
+		</div>
+	);
+}
+
+function getStatusColor(status: FileStatus): string {
+	switch (status) {
+		case "Added": return "text-green-400";
+		case "Deleted": return "text-red-400";
+		case "Modified": return "text-yellow-400";
+		case "Renamed": return "text-blue-400";
+		case "Copied": return "text-purple-400";
+	}
+}

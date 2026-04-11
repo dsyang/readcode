@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+html, body, #root {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	overflow: hidden;
+	background-color: #18181b;
+	color: #fafafa;
+}
+
+/* CodeMirror merge view styling */
+.cm-mergeView {
+	height: 100%;
+}
+
+.cm-mergeView .cm-editor {
+	height: 100%;
+}
+
+.cm-editor .cm-scroller {
+	font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+	font-size: 13px;
+}
+
+/* Make unchanged-collapsed chunks clickable */
+.cm-collapsedCode {
+	cursor: pointer;
+}

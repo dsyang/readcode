@@ -1,51 +1,72 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { Allotment } from "allotment";
+import "allotment/dist/style.css";
+import { Toolbar } from "./components/layout/Toolbar";
+import { CommitList } from "./components/graph/CommitList";
+import { FileList } from "./components/graph/FileList";
+import { DiffView } from "./components/diff/DiffView";
+import { useSelectionStore } from "./stores/selectionStore";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+	const error = useSelectionStore((s) => s.error);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+	return (
+		<div className="flex flex-col h-screen bg-zinc-900 text-white">
+			<Toolbar />
 
-  return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+			{error && (
+				<div className="px-4 py-2 bg-red-900/50 text-red-300 text-sm border-b border-red-800">
+					{error}
+					<button
+						onClick={() => useSelectionStore.setState({ error: null })}
+						className="ml-2 text-red-400 hover:text-white"
+					>
+						Dismiss
+					</button>
+				</div>
+			)}
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+			<div className="flex-1 min-h-0">
+				<Allotment>
+					{/* Left panel: commits + file list */}
+					<Allotment.Pane preferredSize={320} minSize={200}>
+						<Allotment vertical>
+							<Allotment.Pane preferredSize="60%">
+								<CommitList />
+							</Allotment.Pane>
+							<Allotment.Pane>
+								<FileList />
+							</Allotment.Pane>
+						</Allotment>
+					</Allotment.Pane>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+					{/* Center panel: diff viewer */}
+					<Allotment.Pane>
+						<DiffView />
+					</Allotment.Pane>
+				</Allotment>
+			</div>
+
+			<StatusBar />
+		</div>
+	);
+}
+
+function StatusBar() {
+	const repoPath = useSelectionStore((s) => s.repoPath);
+	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
+
+	return (
+		<div className="flex items-center px-4 py-1 bg-zinc-800 border-t border-zinc-700 text-xs text-zinc-500">
+			<span>{repoPath ? "Connected" : "No repository"}</span>
+			<div className="flex-1" />
+			{mergedDiff && (
+				<span>
+					Diff: {mergedDiff.head_description} &mdash;{" "}
+					{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""}
+				</span>
+			)}
+		</div>
+	);
 }
 
 export default App;
