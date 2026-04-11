@@ -19,8 +19,7 @@
     ],
     "security": {
       "csp": null
-    },
-    "enableGTK3": false
+    }
   },
   "bundle": {
     "active": true,
