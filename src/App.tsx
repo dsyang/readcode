@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 import { Toolbar } from "./components/layout/Toolbar";
@@ -8,10 +9,12 @@ import { useSelectionStore } from "./stores/selectionStore";
 
 function App() {
 	const error = useSelectionStore((s) => s.error);
+	const [sidebarVisible, setSidebarVisible] = useState(true);
+	const toggleSidebar = useCallback(() => setSidebarVisible((v) => !v), []);
 
 	return (
 		<div className="flex flex-col h-screen bg-zinc-900 text-white">
-			<Toolbar />
+			<Toolbar sidebarVisible={sidebarVisible} onToggleSidebar={toggleSidebar} />
 
 			{error && (
 				<div className="px-4 py-2 bg-red-900/50 text-red-300 text-sm border-b border-red-800">
@@ -27,19 +30,19 @@ function App() {
 
 			<div className="flex-1 min-h-0">
 				<Allotment>
-					{/* Left panel: commits + file list */}
-					<Allotment.Pane preferredSize={420} minSize={250}>
-						<Allotment vertical>
-							<Allotment.Pane preferredSize="60%">
-								<CommitList />
-							</Allotment.Pane>
-							<Allotment.Pane>
-								<FileList />
-							</Allotment.Pane>
-						</Allotment>
-					</Allotment.Pane>
+					{sidebarVisible && (
+						<Allotment.Pane preferredSize={420} minSize={250}>
+							<Allotment vertical>
+								<Allotment.Pane preferredSize="60%">
+									<CommitList />
+								</Allotment.Pane>
+								<Allotment.Pane>
+									<FileList />
+								</Allotment.Pane>
+							</Allotment>
+						</Allotment.Pane>
+					)}
 
-					{/* Center panel: diff viewer */}
 					<Allotment.Pane>
 						<DiffView />
 					</Allotment.Pane>

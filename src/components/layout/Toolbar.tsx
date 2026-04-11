@@ -2,7 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSelectionStore } from "../../stores/selectionStore";
 
-export function Toolbar() {
+interface ToolbarProps {
+	sidebarVisible: boolean;
+	onToggleSidebar: () => void;
+}
+
+export function Toolbar({ sidebarVisible, onToggleSidebar }: ToolbarProps) {
 	const repoPath = useSelectionStore((s) => s.repoPath);
 	const isLoading = useSelectionStore((s) => s.isLoading);
 	const selectedCount = useSelectionStore((s) => s.selectedCommitOids.size);
@@ -134,6 +139,23 @@ export function Toolbar() {
 					</div>
 				)}
 			</div>
+
+			<button
+				onClick={onToggleSidebar}
+				className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-700"
+				title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+					<rect x="1" y="2" width="14" height="12" rx="1.5" />
+					<line x1="5.5" y1="2" x2="5.5" y2="14" />
+					{!sidebarVisible && (
+						<>
+							<line x1="3" y1="5" x2="3" y2="11" strokeWidth="1" strokeOpacity="0.5" />
+							<line x1="3" y1="8" x2="5" y2="8" strokeWidth="1" strokeOpacity="0.5" />
+						</>
+					)}
+				</svg>
+			</button>
 
 			<div className="flex-1" />
 
