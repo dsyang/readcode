@@ -3,8 +3,8 @@ import type { DiffFile, FileStatus } from "../../api/types";
 
 export function FileList() {
 	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
-	const selectedFilePath = useSelectionStore((s) => s.selectedFilePath);
-	const selectFile = useSelectionStore((s) => s.selectFile);
+	const selectedFilePaths = useSelectionStore((s) => s.selectedFilePaths);
+	const handleFileClick = useSelectionStore((s) => s.handleFileClick);
 
 	if (!mergedDiff) {
 		return (
@@ -18,13 +18,16 @@ export function FileList() {
 		<div className="overflow-y-auto h-full">
 			<div className="px-3 py-1.5 text-xs text-zinc-500 border-b border-zinc-700">
 				{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""} changed
+				{selectedFilePaths.size > 0 && selectedFilePaths.size < mergedDiff.files.length && (
+					<span className="ml-1">({selectedFilePaths.size} selected)</span>
+				)}
 			</div>
 			{mergedDiff.files.map((file) => (
 				<FileRow
 					key={file.path}
 					file={file}
-					isSelected={selectedFilePath === file.path}
-					onSelect={selectFile}
+					isSelected={selectedFilePaths.has(file.path)}
+					onClick={handleFileClick}
 				/>
 			))}
 		</div>
@@ -34,12 +37,12 @@ export function FileList() {
 interface FileRowProps {
 	file: DiffFile;
 	isSelected: boolean;
-	onSelect: (path: string) => Promise<void>;
+	onClick: (path: string, metaKey: boolean, shiftKey: boolean) => void;
 }
 
-function FileRow({ file, isSelected, onSelect }: FileRowProps) {
+function FileRow({ file, isSelected, onClick }: FileRowProps) {
 	const statusColor = getStatusColor(file.status);
-	const statusChar = file.status[0]; // A, D, M, R, C
+	const statusChar = file.status[0];
 	const fileName = file.path.split("/").pop() ?? file.path;
 	const dirPath = file.path.includes("/")
 		? file.path.substring(0, file.path.lastIndexOf("/"))
@@ -47,7 +50,7 @@ function FileRow({ file, isSelected, onSelect }: FileRowProps) {
 
 	return (
 		<div
-			onClick={() => onSelect(file.path)}
+			onClick={(e) => onClick(file.path, e.metaKey || e.ctrlKey, e.shiftKey)}
 			className={`flex items-center gap-2 px-3 py-1 cursor-pointer text-sm ${
 				isSelected
 					? "bg-blue-900/40 text-white"

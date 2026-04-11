@@ -1,27 +1,24 @@
 use std::sync::Mutex;
 
 use review_core::repo::Repo;
-use review_core::types::{CommitInfo, CommitRange, FileDiffContent, MergedDiff};
+use review_core::types::{CommitInfo, CommitRange, FileDiffContent, MergedDiff, RepoInfo};
 use tauri::State;
 
 pub struct RepoState(pub Mutex<Option<Repo>>);
 
 #[tauri::command]
-pub fn open_repo(path: String, state: State<RepoState>) -> Result<String, String> {
+pub fn open_repo(path: String, state: State<RepoState>) -> Result<RepoInfo, String> {
     let repo = Repo::open(&path).map_err(|e| e.to_string())?;
-    let workdir = repo
-        .workdir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| path.clone());
+    let info = repo.info();
     *state.0.lock().unwrap() = Some(repo);
-    Ok(workdir)
+    Ok(info)
 }
 
 #[tauri::command]
 pub fn get_commits(max_count: Option<usize>, state: State<RepoState>) -> Result<Vec<CommitInfo>, String> {
     let guard = state.0.lock().unwrap();
     let repo = guard.as_ref().ok_or("No repository is open")?;
-    repo.list_commits(max_count.unwrap_or(500))
+    repo.list_commits(max_count.unwrap_or(50))
         .map_err(|e| e.to_string())
 }
 

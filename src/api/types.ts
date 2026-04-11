@@ -9,6 +9,20 @@ export interface CommitInfo {
 	branches: string[];
 	tags: string[];
 	is_head: boolean;
+	lane: number;
+	edges: DagEdge[];
+	lane_count: number;
+}
+
+export interface DagEdge {
+	from_lane: number;
+	to_lane: number;
+	color: number;
+}
+
+export interface RepoInfo {
+	workdir: string;
+	current_branch: string | null;
 }
 
 export interface CommitRange {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// A single commit in the repository.
+/// A single commit in the repository, with DAG layout info.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommitInfo {
     pub oid: String,
@@ -13,6 +13,30 @@ pub struct CommitInfo {
     pub branches: Vec<String>,
     pub tags: Vec<String>,
     pub is_head: bool,
+    /// DAG lane index (column) for this commit.
+    pub lane: usize,
+    /// DAG edges from this commit to its parents.
+    pub edges: Vec<DagEdge>,
+    /// Number of active lanes at this row (for SVG width).
+    pub lane_count: usize,
+}
+
+/// An edge in the DAG graph connecting a commit to its parent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DagEdge {
+    /// Lane of this commit (source).
+    pub from_lane: usize,
+    /// Lane of the parent commit (target).
+    pub to_lane: usize,
+    /// Color index for this edge.
+    pub color: usize,
+}
+
+/// Result of opening a repo.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepoInfo {
+    pub workdir: String,
+    pub current_branch: Option<String>,
 }
 
 /// A range of commits (plus optionally working tree) to diff.

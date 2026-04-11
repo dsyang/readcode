@@ -27,3 +27,10 @@ html, body, #root {
 .cm-collapsedCode {
 	cursor: pointer;
 }
+
+/* Remove underline/strikethrough on changed text in merge view */
+.cm-changedText,
+.cm-deletedChunk .cm-changedText,
+.cm-mergeView .cm-changedText {
+	text-decoration: none !important;
+}

@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CommitInfo, CommitRange, FileDiffContent, MergedDiff } from "./types";
+import type { CommitInfo, CommitRange, FileDiffContent, MergedDiff, RepoInfo } from "./types";
 
-export async function openRepo(path: string): Promise<string> {
-	return invoke<string>("open_repo", { path });
+export async function openRepo(path: string): Promise<RepoInfo> {
+	return invoke<RepoInfo>("open_repo", { path });
 }
 
 export async function getCommits(maxCount?: number): Promise<CommitInfo[]> {
-	return invoke<CommitInfo[]>("get_commits", { maxCount: maxCount ?? 500 });
+	return invoke<CommitInfo[]>("get_commits", { maxCount: maxCount ?? 50 });
 }
 
 export async function getMergedDiff(range: CommitRange): Promise<MergedDiff> {

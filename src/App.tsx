@@ -28,7 +28,7 @@ function App() {
 			<div className="flex-1 min-h-0">
 				<Allotment>
 					{/* Left panel: commits + file list */}
-					<Allotment.Pane preferredSize={320} minSize={200}>
+					<Allotment.Pane preferredSize={420} minSize={250}>
 						<Allotment vertical>
 							<Allotment.Pane preferredSize="60%">
 								<CommitList />
@@ -53,16 +53,33 @@ function App() {
 
 function StatusBar() {
 	const repoPath = useSelectionStore((s) => s.repoPath);
+	const currentBranch = useSelectionStore((s) => s.currentBranch);
 	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
+	const selectedFilePaths = useSelectionStore((s) => s.selectedFilePaths);
 
 	return (
 		<div className="flex items-center px-4 py-1 bg-zinc-800 border-t border-zinc-700 text-xs text-zinc-500">
-			<span>{repoPath ? "Connected" : "No repository"}</span>
+			{repoPath ? (
+				<span className="flex items-center gap-2">
+					{currentBranch && (
+						<span className="flex items-center gap-1 text-zinc-300">
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+								<path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Z" />
+							</svg>
+							{currentBranch}
+						</span>
+					)}
+				</span>
+			) : (
+				<span>No repository</span>
+			)}
 			<div className="flex-1" />
 			{mergedDiff && (
 				<span>
-					Diff: {mergedDiff.head_description} &mdash;{" "}
-					{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""}
+					{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""} changed
+					{selectedFilePaths.size > 0 && selectedFilePaths.size < mergedDiff.files.length && (
+						<span> ({selectedFilePaths.size} viewing)</span>
+					)}
 				</span>
 			)}
 		</div>
