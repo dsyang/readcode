@@ -5,7 +5,6 @@ import { EditorState } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useSelectionStore } from "../../stores/selectionStore";
 import { getLanguageExtension } from "./languages";
-import { setupIncrementalCollapse } from "./incrementalCollapse";
 import type { FileDiffContent } from "../../api/types";
 
 export function DiffView() {
@@ -89,18 +88,12 @@ function FileDiffSection({ content }: FileDiffSectionProps) {
 				extensions,
 			},
 			parent: containerRef.current,
+			collapseUnchanged: { margin: 3, minSize: 4 },
 			gutter: true,
 			highlightChanges: false,
 		});
 
 		viewRef.current = view;
-
-		// Set up incremental collapse after the merge view has computed chunks
-		requestAnimationFrame(() => {
-			if (viewRef.current) {
-				setupIncrementalCollapse(viewRef.current);
-			}
-		});
 
 		return () => {
 			view.destroy();
