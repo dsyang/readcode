@@ -5,6 +5,8 @@ export function FileList() {
 	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
 	const selectedFilePaths = useSelectionStore((s) => s.selectedFilePaths);
 	const handleFileClick = useSelectionStore((s) => s.handleFileClick);
+	const selectAllFiles = useSelectionStore((s) => s.selectAllFiles);
+	const deselectAllFiles = useSelectionStore((s) => s.deselectAllFiles);
 
 	if (!mergedDiff) {
 		return (
@@ -14,13 +16,34 @@ export function FileList() {
 		);
 	}
 
+	const allSelected = selectedFilePaths.size === mergedDiff.files.length;
+
 	return (
-		<div className="overflow-y-auto h-full">
-			<div className="px-3 py-1.5 text-xs text-zinc-500 border-b border-zinc-700">
-				{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""} changed
-				{selectedFilePaths.size > 0 && selectedFilePaths.size < mergedDiff.files.length && (
-					<span className="ml-1">({selectedFilePaths.size} selected)</span>
-				)}
+		<div className="overflow-y-auto h-full select-none">
+			<div className="flex items-center px-3 py-1.5 text-xs text-zinc-500 border-b border-zinc-700">
+				<span>
+					{mergedDiff.files.length} file{mergedDiff.files.length !== 1 ? "s" : ""}
+					{selectedFilePaths.size > 0 && selectedFilePaths.size < mergedDiff.files.length && (
+						<span className="ml-1">({selectedFilePaths.size} shown)</span>
+					)}
+				</span>
+				<span className="ml-auto flex gap-1">
+					{allSelected ? (
+						<button
+							onClick={deselectAllFiles}
+							className="text-zinc-400 hover:text-white"
+						>
+							none
+						</button>
+					) : (
+						<button
+							onClick={selectAllFiles}
+							className="text-zinc-400 hover:text-white"
+						>
+							all
+						</button>
+					)}
+				</span>
 			</div>
 			{mergedDiff.files.map((file) => (
 				<FileRow

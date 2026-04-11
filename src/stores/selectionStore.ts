@@ -30,9 +30,12 @@ interface SelectionState {
 
 	// Actions
 	openRepository: (path: string) => Promise<void>;
+	closeRepository: () => void;
 	handleCommitClick: (oid: string, metaKey: boolean, shiftKey: boolean) => void;
 	toggleWorkingTree: () => void;
 	handleFileClick: (path: string, metaKey: boolean, shiftKey: boolean) => void;
+	selectAllFiles: () => void;
+	deselectAllFiles: () => void;
 	clearSelection: () => void;
 }
 
@@ -177,6 +180,33 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 
 		set({ selectedFilePaths: newSelection, lastClickedFilePath: path });
 		fetchFileContents(newSelection, state);
+	},
+
+	closeRepository: () => {
+		set({
+			repoPath: null,
+			currentBranch: null,
+			commits: [],
+			selectedCommitOids: new Set(),
+			lastClickedCommitOid: null,
+			includeWorkingTree: false,
+			mergedDiff: null,
+			selectedFilePaths: new Set(),
+			lastClickedFilePath: null,
+			fileDiffContents: new Map(),
+		});
+	},
+
+	selectAllFiles: () => {
+		const state = get();
+		if (!state.mergedDiff) return;
+		const allPaths = new Set(state.mergedDiff.files.map((f) => f.path));
+		set({ selectedFilePaths: allPaths });
+		fetchFileContents(allPaths, state);
+	},
+
+	deselectAllFiles: () => {
+		set({ selectedFilePaths: new Set(), fileDiffContents: new Map() });
 	},
 
 	clearSelection: () => {

@@ -24,10 +24,13 @@ function laneColor(index: number): string {
 
 export function CommitList() {
 	const commits = useSelectionStore((s) => s.commits);
+	const repoPath = useSelectionStore((s) => s.repoPath);
 	const selectedOids = useSelectionStore((s) => s.selectedCommitOids);
+	const includeWorkingTree = useSelectionStore((s) => s.includeWorkingTree);
 	const handleCommitClick = useSelectionStore((s) => s.handleCommitClick);
+	const toggleWorkingTree = useSelectionStore((s) => s.toggleWorkingTree);
 
-	if (commits.length === 0) {
+	if (!repoPath) {
 		return (
 			<div className="flex items-center justify-center h-full text-zinc-500 text-sm">
 				Open a repository to see commits
@@ -35,12 +38,45 @@ export function CommitList() {
 		);
 	}
 
-	// Compute max lane count across all visible commits for SVG width
 	const maxLanes = Math.max(...commits.map((c) => c.lane_count), 1);
 	const graphWidth = maxLanes * LANE_WIDTH + 8;
 
 	return (
-		<div className="overflow-y-auto h-full">
+		<div className="overflow-y-auto h-full select-none">
+			{/* Working Tree pseudo-entry */}
+			<div
+				onClick={toggleWorkingTree}
+				className={`flex items-stretch cursor-pointer border-b border-zinc-800 ${
+					includeWorkingTree
+						? "bg-amber-900/30"
+						: "hover:bg-zinc-800/50"
+				}`}
+				style={{ height: ROW_HEIGHT }}
+			>
+				<div className="flex-shrink-0 flex items-center justify-center" style={{ width: graphWidth }}>
+					<div className={`w-2.5 h-2.5 rounded-sm ${
+						includeWorkingTree ? "bg-amber-400" : "bg-zinc-600 border border-zinc-500"
+					}`} />
+				</div>
+				<div className="flex-1 min-w-0 flex flex-col justify-center py-1 pr-3">
+					<div className="flex items-center gap-1.5">
+						<span className={`text-sm italic ${
+							includeWorkingTree ? "text-amber-200" : "text-zinc-400"
+						}`}>
+							Working Tree
+						</span>
+						{includeWorkingTree && (
+							<span className="px-1.5 py-0 text-[11px] rounded bg-amber-800/60 text-amber-300 leading-4">
+								included
+							</span>
+						)}
+					</div>
+					<div className="text-xs text-zinc-500 mt-0.5">
+						Uncommitted changes
+					</div>
+				</div>
+			</div>
+
 			{commits.map((commit) => (
 				<CommitRow
 					key={commit.oid}
@@ -64,6 +100,7 @@ interface CommitRowProps {
 function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) {
 	const date = new Date(commit.timestamp * 1000);
 	const timeStr = formatRelativeDate(date);
+	const authorDisplay = formatAuthor(commit.author_name, commit.author_email);
 
 	return (
 		<div
@@ -78,7 +115,6 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 			{/* DAG graph column */}
 			<div className="flex-shrink-0" style={{ width: graphWidth }}>
 				<svg width={graphWidth} height={ROW_HEIGHT}>
-					{/* Edges to parents (drawn as lines going down to next row) */}
 					{commit.edges.map((edge, i) => {
 						const x1 = edge.from_lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
 						const x2 = edge.to_lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
@@ -87,7 +123,6 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 						const color = laneColor(edge.color);
 
 						if (x1 === x2) {
-							// Straight line down
 							return (
 								<line
 									key={i}
@@ -96,7 +131,6 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 								/>
 							);
 						} else {
-							// Curved line to different lane
 							const midY = (y1 + y2) / 2;
 							return (
 								<path
@@ -108,12 +142,8 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 						}
 					})}
 
-					{/* Continuation lines from parents above */}
 					{Array.from({ length: commit.lane_count }, (_, lane) => {
-						// Draw a line from top to the node if this lane is "passing through"
-						// A lane passes through if it's not this commit's lane but has an active edge
 						if (lane === commit.lane) {
-							// Draw line from top to center (the node)
 							const x = lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
 							return (
 								<line
@@ -127,7 +157,6 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 						return null;
 					})}
 
-					{/* Commit node */}
 					<circle
 						cx={commit.lane * LANE_WIDTH + LANE_WIDTH / 2 + 4}
 						cy={ROW_HEIGHT / 2}
@@ -141,7 +170,6 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 
 			{/* Commit info: two lines */}
 			<div className="flex-1 min-w-0 flex flex-col justify-center py-1 pr-3">
-				{/* Line 1: summary + branches/tags */}
 				<div className="flex items-center gap-1.5 min-w-0">
 					<span className={`truncate text-sm ${isSelected ? "text-white" : "text-zinc-200"}`}>
 						{commit.summary}
@@ -165,15 +193,33 @@ function CommitRow({ commit, graphWidth, isSelected, onClick }: CommitRowProps) 
 						</span>
 					))}
 				</div>
-				{/* Line 2: author, date, hash */}
 				<div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
-					<span>{commit.author_name}</span>
+					<span>{authorDisplay}</span>
 					<span className="font-mono">{commit.short_oid}</span>
 					<span className="ml-auto flex-shrink-0">{timeStr}</span>
 				</div>
 			</div>
 		</div>
 	);
+}
+
+function formatAuthor(name: string, email: string): string {
+	const ghUsername = extractGitHubUsername(email);
+	if (ghUsername && ghUsername !== name) {
+		return `${name} (${ghUsername})`;
+	}
+	return name;
+}
+
+function extractGitHubUsername(email: string): string | null {
+	// GitHub noreply: 12345+username@users.noreply.github.com
+	// or: username@users.noreply.github.com
+	if (email.endsWith("@users.noreply.github.com")) {
+		const local = email.split("@")[0];
+		const plusIdx = local.indexOf("+");
+		return plusIdx >= 0 ? local.substring(plusIdx + 1) : local;
+	}
+	return null;
 }
 
 function formatRelativeDate(date: Date): string {
