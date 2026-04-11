@@ -4,7 +4,9 @@ import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useSelectionStore } from "../../stores/selectionStore";
+import { useReviewStore } from "../../stores/reviewStore";
 import { getLanguageExtension } from "./languages";
+import { commentGutter } from "./commentGutter";
 import type { FileDiffContent } from "../../api/types";
 
 export function DiffView() {
@@ -60,6 +62,8 @@ function FileDiffSection({ content }: FileDiffSectionProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<MergeView | null>(null);
 	const [collapsed, setCollapsed] = useState(false);
+	const isSessionActive = useReviewStore((s) => s.isSessionActive);
+	const startComment = useReviewStore((s) => s.startComment);
 
 	useEffect(() => {
 		if (!containerRef.current || collapsed) return;
@@ -70,7 +74,8 @@ function FileDiffSection({ content }: FileDiffSectionProps) {
 		}
 
 		const langExt = getLanguageExtension(content.path);
-		const extensions = [
+
+		const baseExtensions = [
 			oneDark,
 			lineNumbers(),
 			EditorView.lineWrapping,
@@ -78,14 +83,28 @@ function FileDiffSection({ content }: FileDiffSectionProps) {
 			...(langExt ? [langExt] : []),
 		];
 
+		const extensionsA = [
+			...baseExtensions,
+			...(isSessionActive
+				? commentGutter((line) => startComment(content.path, line, "old"))
+				: []),
+		];
+
+		const extensionsB = [
+			...baseExtensions,
+			...(isSessionActive
+				? commentGutter((line) => startComment(content.path, line, "new"))
+				: []),
+		];
+
 		const view = new MergeView({
 			a: {
 				doc: content.old_content,
-				extensions,
+				extensions: extensionsA,
 			},
 			b: {
 				doc: content.new_content,
-				extensions,
+				extensions: extensionsB,
 			},
 			parent: containerRef.current,
 			collapseUnchanged: { margin: 3, minSize: 4 },
@@ -99,9 +118,8 @@ function FileDiffSection({ content }: FileDiffSectionProps) {
 			view.destroy();
 			viewRef.current = null;
 		};
-	}, [content, collapsed]);
+	}, [content, collapsed, isSessionActive]);
 
-	// Destroy the merge view when collapsing
 	useEffect(() => {
 		if (collapsed && viewRef.current) {
 			viewRef.current.destroy();

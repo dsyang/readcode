@@ -5,9 +5,11 @@ import { useSelectionStore } from "../../stores/selectionStore";
 interface ToolbarProps {
 	sidebarVisible: boolean;
 	onToggleSidebar: () => void;
+	reviewPanelVisible: boolean;
+	onToggleReviewPanel: () => void;
 }
 
-export function Toolbar({ sidebarVisible, onToggleSidebar }: ToolbarProps) {
+export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, onToggleReviewPanel }: ToolbarProps) {
 	const repoPath = useSelectionStore((s) => s.repoPath);
 	const isLoading = useSelectionStore((s) => s.isLoading);
 	const selectedCount = useSelectionStore((s) => s.selectedCommitOids.size);
@@ -152,6 +154,23 @@ export function Toolbar({ sidebarVisible, onToggleSidebar }: ToolbarProps) {
 						<>
 							<line x1="3" y1="5" x2="3" y2="11" strokeWidth="1" strokeOpacity="0.5" />
 							<line x1="3" y1="8" x2="5" y2="8" strokeWidth="1" strokeOpacity="0.5" />
+						</>
+					)}
+				</svg>
+			</button>
+
+			<button
+				onClick={onToggleReviewPanel}
+				className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-700"
+				title={reviewPanelVisible ? "Hide review panel" : "Show review panel"}
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+					<rect x="1" y="2" width="14" height="12" rx="1.5" />
+					<line x1="10.5" y1="2" x2="10.5" y2="14" />
+					{!reviewPanelVisible && (
+						<>
+							<line x1="12" y1="5" x2="12" y2="11" strokeWidth="1" strokeOpacity="0.5" />
+							<line x1="11" y1="8" x2="13" y2="8" strokeWidth="1" strokeOpacity="0.5" />
 						</>
 					)}
 				</svg>

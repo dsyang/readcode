@@ -5,16 +5,25 @@ import { Toolbar } from "./components/layout/Toolbar";
 import { CommitList } from "./components/graph/CommitList";
 import { FileList } from "./components/graph/FileList";
 import { DiffView } from "./components/diff/DiffView";
+import { CommentPanel } from "./components/review/CommentPanel";
 import { useSelectionStore } from "./stores/selectionStore";
+import { useReviewStore } from "./stores/reviewStore";
 
 function App() {
 	const error = useSelectionStore((s) => s.error);
 	const [sidebarVisible, setSidebarVisible] = useState(true);
+	const [reviewPanelVisible, setReviewPanelVisible] = useState(true);
 	const toggleSidebar = useCallback(() => setSidebarVisible((v) => !v), []);
+	const toggleReviewPanel = useCallback(() => setReviewPanelVisible((v) => !v), []);
 
 	return (
 		<div className="flex flex-col h-screen bg-zinc-900 text-white">
-			<Toolbar sidebarVisible={sidebarVisible} onToggleSidebar={toggleSidebar} />
+			<Toolbar
+				sidebarVisible={sidebarVisible}
+				onToggleSidebar={toggleSidebar}
+				reviewPanelVisible={reviewPanelVisible}
+				onToggleReviewPanel={toggleReviewPanel}
+			/>
 
 			{error && (
 				<div className="px-4 py-2 bg-red-900/50 text-red-300 text-sm border-b border-red-800">
@@ -46,6 +55,12 @@ function App() {
 					<Allotment.Pane>
 						<DiffView />
 					</Allotment.Pane>
+
+					{reviewPanelVisible && (
+						<Allotment.Pane preferredSize={300} minSize={200}>
+							<CommentPanel />
+						</Allotment.Pane>
+					)}
 				</Allotment>
 			</div>
 
@@ -59,6 +74,8 @@ function StatusBar() {
 	const currentBranch = useSelectionStore((s) => s.currentBranch);
 	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
 	const selectedFilePaths = useSelectionStore((s) => s.selectedFilePaths);
+	const session = useReviewStore((s) => s.session);
+	const editMode = useReviewStore((s) => s.editMode);
 
 	return (
 		<div className="flex items-center px-4 py-1 bg-zinc-800 border-t border-zinc-700 text-xs text-zinc-500">
@@ -71,6 +88,14 @@ function StatusBar() {
 							</svg>
 							{currentBranch}
 						</span>
+					)}
+					{session && (
+						<span className="text-zinc-500">
+							Review: {session.comments.length} comment{session.comments.length !== 1 ? "s" : ""}
+						</span>
+					)}
+					{editMode && (
+						<span className="text-amber-400">EDIT MODE</span>
 					)}
 				</span>
 			) : (
