@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use review_core::repo::Repo;
 use review_core::types::{CommitInfo, CommitRange, FileDiffContent, MergedDiff, RepoInfo};
 use tauri::State;
+use std::path::Path;
 
 pub struct RepoState(pub Mutex<Option<Repo>>);
 
@@ -51,4 +52,18 @@ pub fn get_file_at_revision(
     let repo = guard.as_ref().ok_or("No repository is open")?;
     repo.get_file_at_revision(&path, &rev)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn write_file_to_workdir(
+    path: String,
+    content: String,
+    state: State<RepoState>,
+) -> Result<(), String> {
+    let guard = state.0.lock().unwrap();
+    let repo = guard.as_ref().ok_or("No repository is open")?;
+    let workdir = repo.workdir().ok_or("Bare repository")?;
+    let full_path = workdir.join(Path::new(&path));
+    std::fs::write(&full_path, &content)
+        .map_err(|e| format!("Failed to write {}: {}", path, e))
 }

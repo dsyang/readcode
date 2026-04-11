@@ -26,3 +26,10 @@ export async function getFileAtRevision(
 ): Promise<string> {
 	return invoke<string>("get_file_at_revision", { path, rev });
 }
+
+export async function writeFileToWorkdir(
+	path: string,
+	content: string,
+): Promise<void> {
+	return invoke<void>("write_file_to_workdir", { path, content });
+}

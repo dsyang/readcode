@@ -17,6 +17,7 @@ pub fn run() {
             commands::git::get_merged_diff,
             commands::git::get_file_diff_content,
             commands::git::get_file_at_revision,
+            commands::git::write_file_to_workdir,
             commands::review::create_session,
             commands::review::get_session,
             commands::review::load_session,
