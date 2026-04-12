@@ -14,11 +14,15 @@ Inspired by Sublime Merge (commit graph, multi-select commits) and VSCode (side-
 - **Session persistence** to `.ai-review/sessions/*.json` for feeding back to AI agents
 - **"Copy for AI" export** — one-click copy of session JSON to clipboard
 
-## Build Transcript
+## Build Transcripts
 
 This app was built in a single Claude Code session. Full transcript with linked commits:
 
 https://gisthost.github.io/?6f7793b700bf2ad8af027f5f01c7ddd1/index.html
+
+Auto-update infrastructure and first release:
+
+https://gisthost.github.io/?77d207405f78ac67b53db6223bd2c7b4/index.html
 
 ## Development
 
