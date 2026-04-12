@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ReviewSession, AddCommentArgs } from "../api/reviewTypes";
 import * as api from "../api/review";
+import { useSelectionStore } from "./selectionStore";
 
 interface ReviewState {
 	session: ReviewSession | null;
@@ -69,6 +70,13 @@ export const useReviewStore = create<ReviewState>((set) => ({
 		try {
 			const session = await api.loadSession(sessionId);
 			set({ session, isSessionActive: true, existingSessionIds: [] });
+
+			// Restore commit selection from the session
+			const includeWt = session.session.head_commit === "WORKING_TREE";
+			useSelectionStore.getState().restoreSelection(
+				session.session.reviewed_commits,
+				includeWt,
+			);
 		} catch (e) {
 			console.error("Failed to load session:", e);
 		}
@@ -150,6 +158,8 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	},
 
 	scrollToComment: (file, line, side) => {
+		// Ensure the file is selected/loaded before scrolling
+		useSelectionStore.getState().ensureFileSelected(file);
 		set({ scrollTarget: { file, line, side } });
 	},
 

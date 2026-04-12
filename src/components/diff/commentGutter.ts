@@ -1,22 +1,23 @@
 /**
  * CodeMirror gutter for adding comments.
- * Shows "+" on hover for uncommmented lines, and a speech bubble on commented lines.
+ * Shows "+" on hover for uncommented lines, and a dot on commented lines.
  * Captures selection range for multi-line comments.
  */
 import { Facet } from "@codemirror/state";
 import { EditorView, gutter, GutterMarker } from "@codemirror/view";
 
 class AddMarker extends GutterMarker {
+	elementClass = "rc-gutter-add";
 	toDOM(): Text {
 		return document.createTextNode("+");
 	}
 }
 
 class CommentedMarker extends GutterMarker {
+	elementClass = "rc-gutter-commented";
 	toDOM(): HTMLElement {
 		const span = document.createElement("span");
-		span.textContent = "\uD83D\uDCAC";
-		span.style.fontSize = "10px";
+		span.className = "rc-comment-dot";
 		return span;
 	}
 }
@@ -38,8 +39,7 @@ export const commentedLinesFacet = Facet.define<Set<number>, Set<number>>({
 
 /**
  * Creates a comment gutter.
- * onClick receives (startLine, endLine) — if the user has a selection spanning
- * multiple lines, both will differ; otherwise they'll be the same.
+ * onClick receives (startLine, endLine).
  */
 export function commentGutter(onClick: (startLine: number, endLine: number) => void) {
 	return [
@@ -56,8 +56,6 @@ export function commentGutter(onClick: (startLine: number, endLine: number) => v
 			domEventHandlers: {
 				mousedown(view, line) {
 					const clickedLine = view.state.doc.lineAt(line.from).number;
-
-					// Check if there's a multi-line selection
 					const sel = view.state.selection.main;
 					if (!sel.empty) {
 						const startLine = view.state.doc.lineAt(sel.from).number;
@@ -67,7 +65,6 @@ export function commentGutter(onClick: (startLine: number, endLine: number) => v
 							return true;
 						}
 					}
-
 					onClick(clickedLine, clickedLine);
 					return true;
 				},
@@ -79,16 +76,34 @@ export function commentGutter(onClick: (startLine: number, endLine: number) => v
 				cursor: "pointer",
 			},
 			".rc-comment-gutter .cm-gutterElement": {
-				color: "transparent",
 				display: "flex",
 				alignItems: "center",
 				justifyContent: "center",
-				fontSize: "14px",
-				fontWeight: "bold",
 				padding: "0",
 			},
-			".rc-comment-gutter .cm-gutterElement:hover": {
+			/* "+" marker: hidden by default, blue on hover */
+			".rc-comment-gutter .rc-gutter-add": {
+				color: "transparent",
+				fontSize: "14px",
+				fontWeight: "bold",
+			},
+			".rc-comment-gutter .rc-gutter-add:hover": {
 				color: "#60a5fa",
+			},
+			/* Commented marker: always-visible blue dot */
+			".rc-comment-gutter .rc-gutter-commented": {
+				color: "transparent",
+			},
+			".rc-comment-dot": {
+				width: "6px",
+				height: "6px",
+				borderRadius: "50%",
+				backgroundColor: "#60a5fa",
+			},
+			".rc-comment-gutter .rc-gutter-commented:hover .rc-comment-dot": {
+				backgroundColor: "#93c5fd",
+				width: "8px",
+				height: "8px",
 			},
 		}),
 	];

@@ -39,6 +39,8 @@ interface SelectionState {
 	selectAllFiles: () => void;
 	deselectAllFiles: () => void;
 	clearSelection: () => void;
+	restoreSelection: (commitOids: string[], includeWorkingTree: boolean) => void;
+	ensureFileSelected: (filePath: string) => void;
 }
 
 function loadRecentRepos(): string[] {
@@ -252,6 +254,28 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 			lastClickedFilePath: null,
 			fileDiffContents: new Map(),
 		});
+	},
+
+	restoreSelection: (commitOids: string[], includeWorkingTree: boolean) => {
+		const state = get();
+		const newSelection = new Set(
+			commitOids.filter((oid) => state.commits.some((c) => c.oid === oid)),
+		);
+		set({
+			selectedCommitOids: newSelection,
+			includeWorkingTree,
+			lastClickedCommitOid: null,
+		});
+		fetchDiff(newSelection, includeWorkingTree, state.commits);
+	},
+
+	ensureFileSelected: (filePath: string) => {
+		const state = get();
+		if (state.selectedFilePaths.has(filePath)) return;
+		const newPaths = new Set(state.selectedFilePaths);
+		newPaths.add(filePath);
+		set({ selectedFilePaths: newPaths });
+		fetchFileContents(newPaths, { ...state, selectedFilePaths: newPaths });
 	},
 }));
 

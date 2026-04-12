@@ -35,18 +35,28 @@ export function DiffView() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [toggleEditMode, isSessionActive]);
 
-	// Handle scroll-to-comment
+	// Handle scroll-to-comment (with retry for files still loading)
 	useEffect(() => {
 		if (!scrollTarget || !scrollContainerRef.current) return;
 
-		const fileEl = scrollContainerRef.current.querySelector(
-			`[data-file-path="${CSS.escape(scrollTarget.file)}"]`,
-		);
-		if (fileEl) {
-			fileEl.scrollIntoView({ behavior: "smooth", block: "start" });
+		let attempts = 0;
+		function tryScroll() {
+			if (!scrollContainerRef.current || !scrollTarget) return;
+			const fileEl = scrollContainerRef.current.querySelector(
+				`[data-file-path="${CSS.escape(scrollTarget.file)}"]`,
+			);
+			if (fileEl) {
+				fileEl.scrollIntoView({ behavior: "smooth", block: "start" });
+				clearScrollTarget();
+			} else if (attempts < 10) {
+				attempts++;
+				requestAnimationFrame(tryScroll);
+			} else {
+				clearScrollTarget();
+			}
 		}
-		clearScrollTarget();
-	}, [scrollTarget, clearScrollTarget]);
+		tryScroll();
+	}, [scrollTarget, clearScrollTarget, fileDiffContents]);
 
 	if (!mergedDiff) {
 		return (
