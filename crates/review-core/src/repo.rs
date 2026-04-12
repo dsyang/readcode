@@ -51,23 +51,32 @@ impl Repo {
     }
 
     /// List commits with DAG lane layout, in topological order (newest first).
+    /// Only walks HEAD + local branches for performance on large repos.
     pub fn list_commits(&self, max_count: usize) -> Result<Vec<CommitInfo>, ReviewError> {
         let mut revwalk = self.inner.revwalk()?;
         revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
 
-        // Push all branches
-        for branch in self.inner.branches(None)? {
+        // Push HEAD first
+        if let Ok(head) = self.inner.head() {
+            if let Some(oid) = head.target() {
+                let _ = revwalk.push(oid);
+            }
+        }
+
+        // Push local branches only (skip remote branches for speed)
+        for branch in self.inner.branches(Some(BranchType::Local))? {
             let (branch, _) = branch?;
             if let Some(oid) = branch.get().target() {
-                revwalk.push(oid)?;
+                let _ = revwalk.push(oid);
             }
         }
 
         let head_oid = self.inner.head().ok().and_then(|h| h.target());
-        let branch_map = self.build_branch_map()?;
-        let tag_map = self.build_tag_map()?;
 
-        // Collect raw commit data first
+        // Build maps only for local branches (fast)
+        let branch_map = self.build_branch_map()?;
+
+        // Collect raw commit data
         struct RawCommit {
             oid: Oid,
             oid_str: String,
@@ -79,7 +88,6 @@ impl Repo {
             timestamp: i64,
             summary: String,
             branches: Vec<String>,
-            tags: Vec<String>,
             is_head: bool,
         }
 
@@ -106,28 +114,22 @@ impl Repo {
                 timestamp: commit.time().seconds(),
                 summary: commit.summary().unwrap_or("").to_string(),
                 branches: branch_map.get(&oid).cloned().unwrap_or_default(),
-                tags: tag_map.get(&oid).cloned().unwrap_or_default(),
                 is_head: head_oid == Some(oid),
             });
         }
 
-        // DAG lane assignment (straight-branch variant)
-        // lanes[i] = Some(oid) means lane i is reserved for a commit chain ending at oid
+        // DAG lane assignment
         let mut lanes: Vec<Option<Oid>> = Vec::new();
-        // Map from OID to assigned lane
         let mut oid_to_lane: HashMap<Oid, usize> = HashMap::new();
-        // Map from OID to color index
         let mut oid_to_color: HashMap<Oid, usize> = HashMap::new();
         let mut next_color: usize = 0;
 
         let mut commits = Vec::new();
 
         for raw in &raw_commits {
-            // Find lane for this commit
             let my_lane = if let Some(&lane) = oid_to_lane.get(&raw.oid) {
                 lane
             } else {
-                // New branch head — find an empty lane or add one
                 let lane = lanes
                     .iter()
                     .position(|l| l.is_none())
@@ -142,25 +144,18 @@ impl Repo {
             };
 
             let my_color = *oid_to_color.get(&raw.oid).unwrap_or(&0);
-
-            // Build edges and update lanes for parents
             let mut edges = Vec::new();
-
-            // Free this commit's lane
             lanes[my_lane] = None;
 
             for (i, parent_oid) in raw.parent_oids.iter().enumerate() {
                 let parent_lane = if let Some(&existing_lane) = oid_to_lane.get(parent_oid) {
-                    // Parent already has a lane (merge commit case)
                     existing_lane
                 } else if i == 0 {
-                    // First parent continues on the same lane
                     lanes[my_lane] = Some(*parent_oid);
                     oid_to_lane.insert(*parent_oid, my_lane);
                     oid_to_color.insert(*parent_oid, my_color);
                     my_lane
                 } else {
-                    // Additional parents get a new lane
                     let lane = lanes
                         .iter()
                         .position(|l| l.is_none())
@@ -189,7 +184,6 @@ impl Repo {
                 });
             }
 
-            // Trim trailing empty lanes
             while lanes.last() == Some(&None) {
                 lanes.pop();
             }
@@ -203,7 +197,7 @@ impl Repo {
                 timestamp: raw.timestamp,
                 summary: raw.summary.clone(),
                 branches: raw.branches.clone(),
-                tags: raw.tags.clone(),
+                tags: Vec::new(),
                 is_head: raw.is_head,
                 lane: my_lane,
                 edges,
@@ -214,6 +208,7 @@ impl Repo {
         Ok(commits)
     }
 
+    /// Only local branches — fast even for repos with thousands of remote branches.
     fn build_branch_map(&self) -> Result<HashMap<Oid, Vec<String>>, ReviewError> {
         let mut map: HashMap<Oid, Vec<String>> = HashMap::new();
         for branch_result in self.inner.branches(Some(BranchType::Local))? {
@@ -222,32 +217,6 @@ impl Repo {
                 map.entry(oid).or_default().push(name.to_string());
             }
         }
-        for branch_result in self.inner.branches(Some(BranchType::Remote))? {
-            let (branch, _) = branch_result?;
-            if let (Some(name), Some(oid)) = (branch.name()?, branch.get().target()) {
-                map.entry(oid).or_default().push(name.to_string());
-            }
-        }
-        Ok(map)
-    }
-
-    fn build_tag_map(&self) -> Result<HashMap<Oid, Vec<String>>, ReviewError> {
-        let mut map: HashMap<Oid, Vec<String>> = HashMap::new();
-        self.inner.tag_foreach(|oid, name_bytes| {
-            if let Ok(name) = std::str::from_utf8(name_bytes) {
-                let short_name = name.strip_prefix("refs/tags/").unwrap_or(name);
-                let target_oid = self
-                    .inner
-                    .find_tag(oid)
-                    .ok()
-                    .map(|tag| tag.target_id())
-                    .unwrap_or(oid);
-                map.entry(target_oid)
-                    .or_default()
-                    .push(short_name.to_string());
-            }
-            true
-        })?;
         Ok(map)
     }
 }
