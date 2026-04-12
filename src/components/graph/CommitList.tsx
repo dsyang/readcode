@@ -8,8 +8,16 @@ const ROW_HEIGHT = 48;
 const NODE_RADIUS = 4;
 
 const LANE_COLORS = [
-	"#4ec9b0", "#569cd6", "#c586c0", "#ce9178", "#dcdcaa",
-	"#9cdcfe", "#d16969", "#6a9955", "#b5cea8", "#d4d4d4",
+	"#4ec9b0", // teal
+	"#569cd6", // blue
+	"#c586c0", // purple
+	"#ce9178", // orange
+	"#dcdcaa", // yellow
+	"#9cdcfe", // light blue
+	"#d16969", // red
+	"#6a9955", // green
+	"#b5cea8", // light green
+	"#d4d4d4", // gray
 ];
 
 function laneColor(index: number): string {
