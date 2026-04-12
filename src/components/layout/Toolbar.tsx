@@ -85,11 +85,20 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 
 			<div className="relative" ref={dropdownRef}>
 				<div className="flex">
-					{repoPath ? (
+					{isLoading ? (
+						<button
+							disabled
+							className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 rounded text-zinc-400 font-medium"
+						>
+							<svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+								<circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+							</svg>
+							Loading...
+						</button>
+					) : repoPath ? (
 						<button
 							onClick={() => setShowDropdown(!showDropdown)}
-							disabled={isLoading}
-							className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-600 rounded text-white font-medium"
+							className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-white font-medium"
 						>
 							{repoName}
 							<span className="text-[10px] text-zinc-400">&#9660;</span>
