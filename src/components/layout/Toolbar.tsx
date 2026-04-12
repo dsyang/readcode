@@ -91,7 +91,8 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 							className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 rounded text-zinc-400 font-medium"
 						>
 							<svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-								<circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+								<circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+								<path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
 							</svg>
 							Loading...
 						</button>
