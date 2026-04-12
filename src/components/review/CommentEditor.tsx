@@ -18,8 +18,8 @@ export function CommentEditor() {
 		await addComment({
 			file: pendingComment.file,
 			side: pendingComment.side,
-			start_line: pendingComment.line,
-			end_line: pendingComment.line,
+			start_line: pendingComment.startLine,
+			end_line: pendingComment.endLine,
 			body: body.trim(),
 			comment_type: commentType,
 			severity,
@@ -41,12 +41,15 @@ export function CommentEditor() {
 	}
 
 	const fileName = pendingComment.file.split("/").pop();
+	const lineLabel = pendingComment.startLine === pendingComment.endLine
+		? `L${pendingComment.startLine}`
+		: `L${pendingComment.startLine}-${pendingComment.endLine}`;
 
 	return (
 		<div className="border-b border-zinc-700 p-3 bg-zinc-800/50">
 			<div className="flex items-center gap-2 mb-2">
 				<span className="text-xs text-zinc-400">
-					{fileName}:{pendingComment.line} ({pendingComment.side})
+					{fileName}:{lineLabel} ({pendingComment.side})
 				</span>
 				<button
 					onClick={cancelComment}
@@ -90,7 +93,7 @@ export function CommentEditor() {
 
 				<div className="flex-1" />
 
-				<span className="text-[10px] text-zinc-600">{"\u2318"}+Enter to submit</span>
+				<span className="text-[10px] text-zinc-600">{"\u2318"}+Enter</span>
 				<button
 					onClick={handleSubmit}
 					disabled={!body.trim()}

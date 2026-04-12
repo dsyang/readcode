@@ -17,6 +17,9 @@ export function CommentPanel() {
 	const includeWorkingTree = useSelectionStore((s) => s.includeWorkingTree);
 	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
 
+	const [exported, setExported] = useState(false);
+	const [confirmEnd, setConfirmEnd] = useState(false);
+
 	async function handleStartSession() {
 		const commits = Array.from(selectedCommitOids);
 		const head = includeWorkingTree
@@ -30,6 +33,18 @@ export function CommentPanel() {
 	async function handleExport() {
 		const json = await exportSession();
 		await navigator.clipboard.writeText(json);
+		setExported(true);
+		setTimeout(() => setExported(false), 2000);
+	}
+
+	function handleEndClick() {
+		if (confirmEnd) {
+			endSession();
+			setConfirmEnd(false);
+		} else {
+			setConfirmEnd(true);
+			setTimeout(() => setConfirmEnd(false), 3000);
+		}
 	}
 
 	if (!isSessionActive) {
@@ -71,15 +86,20 @@ export function CommentPanel() {
 				<button
 					onClick={handleExport}
 					className="text-xs text-zinc-400 hover:text-white px-2 py-0.5 rounded hover:bg-zinc-700"
-					title="Copy session JSON to clipboard"
+					title="Copy full session JSON to clipboard (paste into Claude or another AI agent)"
 				>
-					Export
+					{exported ? "Copied!" : "Copy for AI"}
 				</button>
 				<button
-					onClick={endSession}
-					className="text-xs text-zinc-400 hover:text-red-400 px-2 py-0.5 rounded hover:bg-zinc-700"
+					onClick={handleEndClick}
+					className={`text-xs px-2 py-0.5 rounded ${
+						confirmEnd
+							? "bg-red-800 text-red-200"
+							: "text-zinc-400 hover:text-red-400 hover:bg-zinc-700"
+					}`}
+					title="End review session"
 				>
-					End
+					{confirmEnd ? "Confirm end?" : "End"}
 				</button>
 			</div>
 
@@ -90,7 +110,9 @@ export function CommentPanel() {
 			<div className="flex-1 overflow-y-auto">
 				{commentCount === 0 && !pendingComment && (
 					<div className="p-4 text-sm text-zinc-500 text-center">
-						Click a line number in the diff gutter to add a comment.
+						Click the + in the diff gutter to add a comment.
+						<br />
+						Select lines first to comment on a range.
 					</div>
 				)}
 
@@ -113,6 +135,7 @@ interface FileCommentGroupProps {
 function FileCommentGroup({ file, comments }: FileCommentGroupProps) {
 	const toggleResolved = useReviewStore((s) => s.toggleResolved);
 	const deleteComment = useReviewStore((s) => s.deleteComment);
+	const scrollToComment = useReviewStore((s) => s.scrollToComment);
 
 	const fileName = file.split("/").pop() ?? file;
 
@@ -124,7 +147,8 @@ function FileCommentGroup({ file, comments }: FileCommentGroupProps) {
 			{comments.map((c) => (
 				<div
 					key={c.id}
-					className={`px-3 py-2 border-b border-zinc-800/50 ${
+					onClick={() => scrollToComment(c.file, c.line_range.start, c.line_range.side)}
+					className={`px-3 py-2 border-b border-zinc-800/50 cursor-pointer hover:bg-zinc-800/70 ${
 						c.resolved ? "opacity-50" : ""
 					}`}
 				>
@@ -142,7 +166,7 @@ function FileCommentGroup({ file, comments }: FileCommentGroupProps) {
 							</div>
 							<p className="text-sm text-zinc-300 whitespace-pre-wrap">{c.body}</p>
 						</div>
-						<div className="flex gap-1 flex-shrink-0">
+						<div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
 							<button
 								onClick={() => toggleResolved(c.id)}
 								className={`text-xs px-1.5 py-0.5 rounded ${

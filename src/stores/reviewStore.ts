@@ -10,6 +10,9 @@ interface ReviewState {
 	// Pending comment being written
 	pendingComment: PendingComment | null;
 
+	// Scroll target: set when user clicks a comment in the panel
+	scrollTarget: ScrollTarget | null;
+
 	// Actions
 	startSession: (
 		branch: string | null,
@@ -26,11 +29,22 @@ interface ReviewState {
 	toggleEditMode: () => void;
 
 	// Pending comment flow
-	startComment: (file: string, line: number, side: "old" | "new") => void;
+	startComment: (file: string, startLine: number, endLine: number, side: "old" | "new") => void;
 	cancelComment: () => void;
+
+	// Scroll
+	scrollToComment: (file: string, line: number, side: "old" | "new") => void;
+	clearScrollTarget: () => void;
 }
 
 export interface PendingComment {
+	file: string;
+	startLine: number;
+	endLine: number;
+	side: "old" | "new";
+}
+
+export interface ScrollTarget {
 	file: string;
 	line: number;
 	side: "old" | "new";
@@ -41,6 +55,7 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	isSessionActive: false,
 	editMode: false,
 	pendingComment: null,
+	scrollTarget: null,
 
 	startSession: async (branch, baseCommit, headCommit, reviewedCommits) => {
 		try {
@@ -99,11 +114,19 @@ export const useReviewStore = create<ReviewState>((set) => ({
 		set((s) => ({ editMode: !s.editMode }));
 	},
 
-	startComment: (file, line, side) => {
-		set({ pendingComment: { file, line, side } });
+	startComment: (file, startLine, endLine, side) => {
+		set({ pendingComment: { file, startLine, endLine, side } });
 	},
 
 	cancelComment: () => {
 		set({ pendingComment: null });
+	},
+
+	scrollToComment: (file, line, side) => {
+		set({ scrollTarget: { file, line, side } });
+	},
+
+	clearScrollTarget: () => {
+		set({ scrollTarget: null });
 	},
 }));

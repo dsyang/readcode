@@ -6,7 +6,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { useSelectionStore } from "../../stores/selectionStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { getLanguageExtension } from "./languages";
-import { commentGutter } from "./commentGutter";
+import { commentGutter, commentedLinesFacet } from "./commentGutter";
 import { writeFileToWorkdir } from "../../api/git";
 import type { FileDiffContent } from "../../api/types";
 
@@ -18,6 +18,10 @@ export function DiffView() {
 	const editMode = useReviewStore((s) => s.editMode);
 	const toggleEditMode = useReviewStore((s) => s.toggleEditMode);
 	const isSessionActive = useReviewStore((s) => s.isSessionActive);
+	const scrollTarget = useReviewStore((s) => s.scrollTarget);
+	const clearScrollTarget = useReviewStore((s) => s.clearScrollTarget);
+	const session = useReviewStore((s) => s.session);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	// Global Cmd+E shortcut
 	useEffect(() => {
@@ -30,6 +34,19 @@ export function DiffView() {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [toggleEditMode, isSessionActive]);
+
+	// Handle scroll-to-comment
+	useEffect(() => {
+		if (!scrollTarget || !scrollContainerRef.current) return;
+
+		const fileEl = scrollContainerRef.current.querySelector(
+			`[data-file-path="${CSS.escape(scrollTarget.file)}"]`,
+		);
+		if (fileEl) {
+			fileEl.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+		clearScrollTarget();
+	}, [scrollTarget, clearScrollTarget]);
 
 	if (!mergedDiff) {
 		return (
@@ -59,8 +76,24 @@ export function DiffView() {
 		.map((f) => f.path)
 		.filter((p) => selectedFilePaths.has(p));
 
+	// Build per-file commented lines from session
+	const commentedLinesMap = new Map<string, { old: Set<number>; new: Set<number> }>();
+	if (session) {
+		for (const c of session.comments) {
+			let entry = commentedLinesMap.get(c.file);
+			if (!entry) {
+				entry = { old: new Set(), new: new Set() };
+				commentedLinesMap.set(c.file, entry);
+			}
+			const side = c.line_range.side === "old" ? entry.old : entry.new;
+			for (let l = c.line_range.start; l <= c.line_range.end; l++) {
+				side.add(l);
+			}
+		}
+	}
+
 	return (
-		<div className="h-full overflow-y-auto">
+		<div className="h-full overflow-y-auto" ref={scrollContainerRef}>
 			{editMode && (
 				<div className="px-4 py-1.5 bg-amber-900/30 border-b border-amber-800/50 text-xs text-amber-300 flex items-center gap-2">
 					<span className="font-bold">EDIT MODE</span>
@@ -74,21 +107,36 @@ export function DiffView() {
 			{orderedPaths.map((path) => {
 				const content = fileDiffContents.get(path);
 				if (!content) return null;
-				return <FileDiffSection key={path} content={content} editMode={editMode} />;
+				const commented = commentedLinesMap.get(path);
+				return (
+					<FileDiffSection
+						key={path}
+						content={content}
+						editMode={editMode}
+						commentedLinesOld={commented?.old ?? EMPTY_SET}
+						commentedLinesNew={commented?.new ?? EMPTY_SET}
+					/>
+				);
 			})}
 		</div>
 	);
 }
 
+const EMPTY_SET = new Set<number>();
+
 interface FileDiffSectionProps {
 	content: FileDiffContent;
 	editMode: boolean;
+	commentedLinesOld: Set<number>;
+	commentedLinesNew: Set<number>;
 }
 
-function FileDiffSection({ content, editMode }: FileDiffSectionProps) {
+function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesNew }: FileDiffSectionProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<MergeView | null>(null);
 	const readOnlyCompartment = useRef(new Compartment());
+	const commentedLinesCompartmentA = useRef(new Compartment());
+	const commentedLinesCompartmentB = useRef(new Compartment());
 	const originalNewContent = useRef(content.new_content);
 	const [collapsed, setCollapsed] = useState(false);
 	const isSessionActive = useReviewStore((s) => s.isSessionActive);
@@ -105,7 +153,6 @@ function FileDiffSection({ content, editMode }: FileDiffSectionProps) {
 			),
 		});
 
-		// When exiting edit mode, save changes if any were made
 		if (!editMode && viewRef.current && edited) {
 			const newContent = viewRef.current.b.state.doc.toString();
 			if (newContent !== originalNewContent.current) {
@@ -116,11 +163,24 @@ function FileDiffSection({ content, editMode }: FileDiffSectionProps) {
 		}
 	}, [editMode]);
 
+	// Update commented line markers when comments change
+	useEffect(() => {
+		if (!viewRef.current) return;
+		viewRef.current.a.dispatch({
+			effects: commentedLinesCompartmentA.current.reconfigure(
+				commentedLinesFacet.of(commentedLinesOld),
+			),
+		});
+		viewRef.current.b.dispatch({
+			effects: commentedLinesCompartmentB.current.reconfigure(
+				commentedLinesFacet.of(commentedLinesNew),
+			),
+		});
+	}, [commentedLinesOld, commentedLinesNew]);
+
 	async function applyEdit(filePath: string, oldContent: string, newContent: string) {
 		try {
 			await writeFileToWorkdir(filePath, newContent);
-
-			// Auto-generate an auto_edit comment
 			if (isSessionActive) {
 				const lines = newContent.split("\n");
 				const oldLines = oldContent.split("\n");
@@ -131,7 +191,6 @@ function FileDiffSection({ content, editMode }: FileDiffSectionProps) {
 						break;
 					}
 				}
-
 				await addComment({
 					file: filePath,
 					side: "new",
@@ -170,21 +229,23 @@ function FileDiffSection({ content, editMode }: FileDiffSectionProps) {
 		const extensionsA = [
 			...baseExtensions,
 			EditorState.readOnly.of(true),
+			commentedLinesCompartmentA.current.of(commentedLinesFacet.of(commentedLinesOld)),
 			...(isSessionActive
-				? commentGutter((line) => startComment(content.path, line, "old"))
+				? commentGutter((startLine, endLine) => startComment(content.path, startLine, endLine, "old"))
 				: []),
 		];
 
 		const extensionsB = [
 			...baseExtensions,
 			readOnlyCompartment.current.of(EditorState.readOnly.of(!editMode)),
+			commentedLinesCompartmentB.current.of(commentedLinesFacet.of(commentedLinesNew)),
 			EditorView.updateListener.of((update) => {
 				if (update.docChanged) {
 					setEdited(true);
 				}
 			}),
 			...(isSessionActive
-				? commentGutter((line) => startComment(content.path, line, "new"))
+				? commentGutter((startLine, endLine) => startComment(content.path, startLine, endLine, "new"))
 				: []),
 		];
 
@@ -226,7 +287,7 @@ function FileDiffSection({ content, editMode }: FileDiffSectionProps) {
 		: "";
 
 	return (
-		<div className="border-b border-zinc-700">
+		<div className="border-b border-zinc-700" data-file-path={content.path}>
 			<div
 				className="flex items-center px-4 py-1.5 bg-zinc-800 border-b border-zinc-700 text-sm sticky top-0 z-10 cursor-pointer hover:bg-zinc-750"
 				onClick={() => setCollapsed(!collapsed)}
