@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSelectionStore } from "../../stores/selectionStore";
 import { useReviewStore } from "../../stores/reviewStore";
+import { useUpdater } from "../../hooks/useUpdater";
 
 interface ToolbarProps {
 	sidebarVisible: boolean;
@@ -21,6 +22,7 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 	const checkExistingSessions = useReviewStore((s) => s.checkExistingSessions);
 	const [showDropdown, setShowDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
+	const { updateAvailable, updateVersion, installing, installUpdate } = useUpdater();
 
 	useEffect(() => {
 		function handleClickOutside(e: MouseEvent) {
@@ -194,6 +196,34 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 			)}
 
 			<div className="flex-1" />
+
+			{/* Update available indicator */}
+			{updateAvailable && (
+				<button
+					onClick={installUpdate}
+					disabled={installing}
+					className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-600 text-white text-xs rounded font-medium"
+					title="Download and install update"
+				>
+					{installing ? (
+						<>
+							<svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+								<circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+								<path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+							</svg>
+							Installing...
+						</>
+					) : (
+						<>
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+								<path d="M8 2v9M4 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+								<line x1="2" y1="14" x2="14" y2="14" strokeLinecap="round" />
+							</svg>
+							Update {updateVersion}
+						</>
+					)}
+				</button>
+			)}
 
 			{/* Right side: review panel toggle */}
 			<button
