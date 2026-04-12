@@ -89,6 +89,11 @@ export const useReviewStore = create<ReviewState>((set) => ({
 			console.error("Failed to end session:", e);
 		}
 		set({ session: null, isSessionActive: false, editMode: false, pendingComment: null });
+		// Refresh the list so remaining unfinished sessions still show
+		try {
+			const ids = await api.listActiveSessions();
+			set({ existingSessionIds: ids });
+		} catch { /* ignore */ }
 	},
 
 	// Clear without renaming file — used when switching repos
