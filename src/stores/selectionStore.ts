@@ -83,7 +83,18 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		// Clear any active review when switching repos
 		useReviewStore.getState().clearSession();
 
-		set({ isLoading: true, error: null });
+		set({
+			isLoading: true,
+			error: null,
+			commits: [],
+			selectedCommitOids: new Set(),
+			lastClickedCommitOid: null,
+			includeWorkingTree: false,
+			mergedDiff: null,
+			selectedFilePaths: new Set(),
+			lastClickedFilePath: null,
+			fileDiffContents: new Map(),
+		});
 		try {
 			const info = await openRepo(path);
 			const commits = await getCommits(50);
