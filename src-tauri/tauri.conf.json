@@ -37,7 +37,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJFNUVCRDk0NEZBRDdFOTIKUldTU2ZxMVBsTDFlTHFFM2VTdk1yYTcvYlphbmFXOUlETjZWSWJJYjNZUG1uS2VmbDRmZTdib24K",
       "endpoints": [
-        "https://dsyang.github.io/readcode-releases/latest.json"
+        "https://dsyang.github.io/readcode/latest.json"
       ]
     }
   }

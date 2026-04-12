@@ -17,7 +17,7 @@
 set -e
 
 VERSION=$1
-RELEASES_REPO="dsyang/readcode-releases"
+RELEASES_REPO="dsyang/readcode"
 
 if [ -z "$VERSION" ]; then
   echo "Usage: ./scripts/release.sh <version>"

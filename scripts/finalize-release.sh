@@ -8,14 +8,14 @@
 # Prerequisites:
 #   - gh CLI installed and authenticated
 #   - Both .dmg and .msi artifacts already uploaded to the draft release
-#   - GitHub Pages enabled on dsyang/readcode-releases (branch: gh-pages)
-#     One-time setup: gh api repos/dsyang/readcode-releases/pages \
+#   - GitHub Pages enabled on dsyang/readcode (branch: gh-pages)
+#     One-time setup: gh api repos/dsyang/readcode/pages \
 #       -X POST -f source[branch]=gh-pages -f source[path]=/
 
 set -e
 
 VERSION=$1
-RELEASES_REPO="dsyang/readcode-releases"
+RELEASES_REPO="dsyang/readcode"
 
 if [ -z "$VERSION" ]; then
   echo "Usage: ./scripts/finalize-release.sh <version>"
@@ -93,7 +93,7 @@ git -C "$WORK_DIR" -c user.name="release-bot" -c user.email="release@readcode" \
   commit -m "update latest.json for $TAG"
 git -C "$WORK_DIR" push origin gh-pages
 
-echo "==> latest.json live at: https://dsyang.github.io/readcode-releases/latest.json"
+echo "==> latest.json live at: https://dsyang.github.io/readcode/latest.json"
 echo "    (GitHub Pages may take ~1 minute to propagate)"
 
 echo "==> Publishing release $TAG on $RELEASES_REPO..."
