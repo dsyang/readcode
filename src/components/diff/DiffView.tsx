@@ -26,7 +26,7 @@ export function DiffView() {
 	// Global Cmd+E shortcut
 	useEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
-			if ((e.metaKey || e.ctrlKey) && e.key === "e" && isSessionActive) {
+			if (e.metaKey && e.key === "e" && isSessionActive) {
 				e.preventDefault();
 				toggleEditMode();
 			}
