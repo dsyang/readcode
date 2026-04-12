@@ -40,8 +40,10 @@ impl Repo {
         };
 
         let (diff, head_description) = if range.include_working_tree {
-            // Diff from base to working tree (includes index)
+            // Diff from base to working tree (includes index + untracked files)
             let mut opts = DiffOptions::new();
+            opts.include_untracked(true);
+            opts.recurse_untracked_dirs(true);
             let diff = match &base_tree {
                 Some(tree) => repo.diff_tree_to_workdir_with_index(Some(tree), Some(&mut opts))?,
                 None => repo.diff_tree_to_workdir_with_index(None, Some(&mut opts))?,
