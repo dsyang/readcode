@@ -30,6 +30,7 @@ interface SelectionState {
 
 	// Actions
 	openRepository: (path: string) => Promise<void>;
+	reloadRepository: () => Promise<void>;
 	closeRepository: () => void;
 	handleCommitClick: (oid: string, metaKey: boolean, shiftKey: boolean) => void;
 	toggleWorkingTree: () => void;
@@ -88,6 +89,30 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 				commits,
 				isLoading: false,
 				recentRepos: newRecent,
+				selectedCommitOids: new Set(),
+				lastClickedCommitOid: null,
+				includeWorkingTree: false,
+				mergedDiff: null,
+				selectedFilePaths: new Set(),
+				lastClickedFilePath: null,
+				fileDiffContents: new Map(),
+			});
+		} catch (e) {
+			set({ isLoading: false, error: String(e) });
+		}
+	},
+
+	reloadRepository: async () => {
+		const state = get();
+		if (!state.repoPath) return;
+		set({ isLoading: true, error: null });
+		try {
+			const info = await openRepo(state.repoPath);
+			const commits = await getCommits(50);
+			set({
+				currentBranch: info.current_branch,
+				commits,
+				isLoading: false,
 				selectedCommitOids: new Set(),
 				lastClickedCommitOid: null,
 				includeWorkingTree: false,

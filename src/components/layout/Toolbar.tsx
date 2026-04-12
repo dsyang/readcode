@@ -12,10 +12,9 @@ interface ToolbarProps {
 export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, onToggleReviewPanel }: ToolbarProps) {
 	const repoPath = useSelectionStore((s) => s.repoPath);
 	const isLoading = useSelectionStore((s) => s.isLoading);
-	const selectedCount = useSelectionStore((s) => s.selectedCommitOids.size);
-	const clearSelection = useSelectionStore((s) => s.clearSelection);
 	const openRepository = useSelectionStore((s) => s.openRepository);
 	const closeRepository = useSelectionStore((s) => s.closeRepository);
+	const reloadRepository = useSelectionStore((s) => s.reloadRepository);
 	const recentRepos = useSelectionStore((s) => s.recentRepos);
 	const [showDropdown, setShowDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,24 +54,40 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 	const hasDropdown = repoPath || recentRepos.length > 0;
 
 	return (
-		<div className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-700 text-sm">
+		<div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-700 text-sm">
+			{/* Left side: sidebar toggle + repo button + reload */}
+			<button
+				onClick={onToggleSidebar}
+				className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-700"
+				title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+					<rect x="1" y="2" width="14" height="12" rx="1.5" />
+					<line x1="5.5" y1="2" x2="5.5" y2="14" />
+					{!sidebarVisible && (
+						<>
+							<line x1="3" y1="5" x2="3" y2="11" strokeWidth="1" strokeOpacity="0.5" />
+							<line x1="3" y1="8" x2="5" y2="8" strokeWidth="1" strokeOpacity="0.5" />
+						</>
+					)}
+				</svg>
+			</button>
+
 			<div className="relative" ref={dropdownRef}>
 				<div className="flex">
 					{repoPath ? (
-						<>
-							<button
-								onClick={() => setShowDropdown(!showDropdown)}
-								disabled={isLoading}
-								className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-600 rounded text-white font-medium"
-							>
-								{repoName}
-								<span className="text-[10px] text-zinc-400">&#9660;</span>
-							</button>
-						</>
+						<button
+							onClick={() => setShowDropdown(!showDropdown)}
+							disabled={isLoading}
+							className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-600 rounded text-white font-medium"
+						>
+							{repoName}
+							<span className="text-[10px] text-zinc-400">&#9660;</span>
+						</button>
 					) : (
 						<>
 							<button
-								onClick={hasDropdown ? handleOpenRepo : handleOpenRepo}
+								onClick={handleOpenRepo}
 								disabled={isLoading}
 								className={`px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-600 text-white font-medium ${
 									hasDropdown ? "rounded-l" : "rounded"
@@ -142,23 +157,25 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 				)}
 			</div>
 
-			<button
-				onClick={onToggleSidebar}
-				className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-700"
-				title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-					<rect x="1" y="2" width="14" height="12" rx="1.5" />
-					<line x1="5.5" y1="2" x2="5.5" y2="14" />
-					{!sidebarVisible && (
-						<>
-							<line x1="3" y1="5" x2="3" y2="11" strokeWidth="1" strokeOpacity="0.5" />
-							<line x1="3" y1="8" x2="5" y2="8" strokeWidth="1" strokeOpacity="0.5" />
-						</>
-					)}
-				</svg>
-			</button>
+			{repoPath && (
+				<button
+					onClick={reloadRepository}
+					disabled={isLoading}
+					className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-700 disabled:opacity-50"
+					title="Reload repository"
+				>
+					<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+						<path d="M2.5 8a5.5 5.5 0 0 1 9.3-4" />
+						<path d="M13.5 8a5.5 5.5 0 0 1-9.3 4" />
+						<polyline points="12 2 12 5 9 5" fill="none" />
+						<polyline points="4 14 4 11 7 11" fill="none" />
+					</svg>
+				</button>
+			)}
 
+			<div className="flex-1" />
+
+			{/* Right side: review panel toggle */}
 			<button
 				onClick={onToggleReviewPanel}
 				className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-700"
@@ -175,25 +192,6 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 					)}
 				</svg>
 			</button>
-
-			<div className="flex-1" />
-
-			{repoPath && (
-				<>
-					{selectedCount > 0 && (
-						<span className="text-zinc-400">
-							{selectedCount} commit{selectedCount > 1 ? "s" : ""} selected
-						</span>
-					)}
-
-					<button
-						onClick={clearSelection}
-						className="px-2 py-1 text-zinc-400 hover:text-white"
-					>
-						Clear
-					</button>
-				</>
-			)}
 		</div>
 	);
 }

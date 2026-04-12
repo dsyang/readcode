@@ -77,30 +77,41 @@ export function CommentPanel() {
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-700 text-sm">
-				<span className="text-zinc-300 font-medium">Review</span>
-				<span className="text-xs text-zinc-500">
-					{commentCount} comment{commentCount !== 1 ? "s" : ""}
-				</span>
-				<div className="flex-1" />
-				<button
-					onClick={handleExport}
-					className="text-xs text-zinc-400 hover:text-white px-2 py-0.5 rounded hover:bg-zinc-700"
-					title="Copy full session JSON to clipboard (paste into Claude or another AI agent)"
-				>
-					{exported ? "Copied!" : "Copy for AI"}
-				</button>
-				<button
-					onClick={handleEndClick}
-					className={`text-xs px-2 py-0.5 rounded ${
-						confirmEnd
-							? "bg-red-800 text-red-200"
-							: "text-zinc-400 hover:text-red-400 hover:bg-zinc-700"
-					}`}
-					title="End review session"
-				>
-					{confirmEnd ? "Confirm end?" : "End"}
-				</button>
+			<div className="border-b border-zinc-700">
+				<div className="flex items-center gap-2 px-3 py-2 text-sm">
+					<span className="text-zinc-300 font-medium">Review</span>
+					<span className="text-xs text-zinc-500">
+						{commentCount} comment{commentCount !== 1 ? "s" : ""}
+					</span>
+					<div className="flex-1" />
+					<button
+						onClick={handleExport}
+						className="text-xs text-zinc-400 hover:text-white px-2 py-0.5 rounded hover:bg-zinc-700"
+						title="Copy full session JSON to clipboard (paste into Claude or another AI agent)"
+					>
+						{exported ? "Copied!" : "Copy for AI"}
+					</button>
+					<button
+						onClick={handleEndClick}
+						className={`text-xs px-2 py-0.5 rounded ${
+							confirmEnd
+								? "bg-red-800 text-red-200"
+								: "text-zinc-400 hover:text-red-400 hover:bg-zinc-700"
+						}`}
+						title="End review session"
+					>
+						{confirmEnd ? "Confirm end?" : "End"}
+					</button>
+				</div>
+				{session && (
+					<div
+						className="px-3 pb-1.5 text-[10px] text-zinc-600 font-mono truncate cursor-pointer hover:text-zinc-400"
+						title={`${session.session.repo}.ai-review/sessions/${session.session.id}.json`}
+						onClick={() => navigator.clipboard.writeText(`${session.session.repo}.ai-review/sessions/${session.session.id}.json`)}
+					>
+						.ai-review/sessions/{session.session.id.substring(0, 8)}...json
+					</div>
+				)}
 			</div>
 
 			{/* Pending comment editor */}
