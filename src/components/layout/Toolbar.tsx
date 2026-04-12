@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSelectionStore } from "../../stores/selectionStore";
+import { useReviewStore } from "../../stores/reviewStore";
 
 interface ToolbarProps {
 	sidebarVisible: boolean;
@@ -12,10 +13,12 @@ interface ToolbarProps {
 export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, onToggleReviewPanel }: ToolbarProps) {
 	const repoPath = useSelectionStore((s) => s.repoPath);
 	const isLoading = useSelectionStore((s) => s.isLoading);
-	const openRepository = useSelectionStore((s) => s.openRepository);
+	const rawOpenRepository = useSelectionStore((s) => s.openRepository);
 	const closeRepository = useSelectionStore((s) => s.closeRepository);
 	const reloadRepository = useSelectionStore((s) => s.reloadRepository);
 	const recentRepos = useSelectionStore((s) => s.recentRepos);
+	const clearSession = useReviewStore((s) => s.clearSession);
+	const checkExistingSessions = useReviewStore((s) => s.checkExistingSessions);
 	const [showDropdown, setShowDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +31,12 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
+
+	async function openRepository(path: string) {
+		clearSession();
+		await rawOpenRepository(path);
+		setTimeout(() => checkExistingSessions(), 50);
+	}
 
 	async function handleOpenRepo() {
 		setShowDropdown(false);
@@ -44,6 +53,7 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 
 	function handleClose() {
 		setShowDropdown(false);
+		clearSession();
 		closeRepository();
 	}
 

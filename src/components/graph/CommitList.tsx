@@ -1,5 +1,6 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useSelectionStore } from "../../stores/selectionStore";
+import { useReviewStore } from "../../stores/reviewStore";
 import type { CommitInfo } from "../../api/types";
 
 const LANE_WIDTH = 16;
@@ -41,9 +42,32 @@ export function CommitList() {
 	const repoPath = useSelectionStore((s) => s.repoPath);
 	const selectedOids = useSelectionStore((s) => s.selectedCommitOids);
 	const includeWorkingTree = useSelectionStore((s) => s.includeWorkingTree);
-	const handleCommitClick = useSelectionStore((s) => s.handleCommitClick);
-	const toggleWorkingTree = useSelectionStore((s) => s.toggleWorkingTree);
+	const rawHandleCommitClick = useSelectionStore((s) => s.handleCommitClick);
+	const rawToggleWorkingTree = useSelectionStore((s) => s.toggleWorkingTree);
 	const clearSelection = useSelectionStore((s) => s.clearSelection);
+	const isSessionActive = useReviewStore((s) => s.isSessionActive);
+	const clearSession = useReviewStore((s) => s.clearSession);
+	const checkExistingSessions = useReviewStore((s) => s.checkExistingSessions);
+
+	const pauseReviewIfActive = useCallback(() => {
+		if (isSessionActive) {
+			clearSession();
+			setTimeout(() => checkExistingSessions(), 50);
+		}
+	}, [isSessionActive, clearSession, checkExistingSessions]);
+
+	const handleCommitClick = useCallback(
+		(oid: string, metaKey: boolean, shiftKey: boolean) => {
+			pauseReviewIfActive();
+			rawHandleCommitClick(oid, metaKey, shiftKey);
+		},
+		[pauseReviewIfActive, rawHandleCommitClick],
+	);
+
+	const toggleWorkingTree = useCallback(() => {
+		pauseReviewIfActive();
+		rawToggleWorkingTree();
+	}, [pauseReviewIfActive, rawToggleWorkingTree]);
 
 	const activeLanesPerRow = useMemo(() => computeActiveLanes(commits), [commits]);
 	const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
