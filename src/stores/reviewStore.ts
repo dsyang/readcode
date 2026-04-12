@@ -6,12 +6,11 @@ interface ReviewState {
 	session: ReviewSession | null;
 	isSessionActive: boolean;
 	editMode: boolean;
-
-	// Pending comment being written
 	pendingComment: PendingComment | null;
-
-	// Scroll target: set when user clicks a comment in the panel
 	scrollTarget: ScrollTarget | null;
+
+	// Existing sessions found in repo
+	existingSessionIds: string[];
 
 	// Actions
 	startSession: (
@@ -20,19 +19,18 @@ interface ReviewState {
 		headCommit: string,
 		reviewedCommits: string[],
 	) => Promise<void>;
-	endSession: () => void;
+	resumeSession: (sessionId: string) => Promise<void>;
+	endSession: () => Promise<void>;
+	clearSession: () => void;
+	checkExistingSessions: () => Promise<void>;
 	addComment: (args: AddCommentArgs) => Promise<void>;
 	toggleResolved: (commentId: string) => Promise<void>;
 	deleteComment: (commentId: string) => Promise<void>;
 	exportSession: () => Promise<string>;
 	setSummary: (summary: string) => Promise<void>;
 	toggleEditMode: () => void;
-
-	// Pending comment flow
 	startComment: (file: string, startLine: number, endLine: number, side: "old" | "new") => void;
 	cancelComment: () => void;
-
-	// Scroll
 	scrollToComment: (file: string, line: number, side: "old" | "new") => void;
 	clearScrollTarget: () => void;
 }
@@ -56,18 +54,47 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	editMode: false,
 	pendingComment: null,
 	scrollTarget: null,
+	existingSessionIds: [],
 
 	startSession: async (branch, baseCommit, headCommit, reviewedCommits) => {
 		try {
 			const session = await api.createSession(branch, baseCommit, headCommit, reviewedCommits);
-			set({ session, isSessionActive: true });
+			set({ session, isSessionActive: true, existingSessionIds: [] });
 		} catch (e) {
 			console.error("Failed to create session:", e);
 		}
 	},
 
-	endSession: () => {
+	resumeSession: async (sessionId) => {
+		try {
+			const session = await api.loadSession(sessionId);
+			set({ session, isSessionActive: true, existingSessionIds: [] });
+		} catch (e) {
+			console.error("Failed to load session:", e);
+		}
+	},
+
+	endSession: async () => {
+		try {
+			await api.endSession();
+		} catch (e) {
+			console.error("Failed to end session:", e);
+		}
 		set({ session: null, isSessionActive: false, editMode: false, pendingComment: null });
+	},
+
+	// Clear without renaming file — used when switching repos
+	clearSession: () => {
+		set({ session: null, isSessionActive: false, editMode: false, pendingComment: null, existingSessionIds: [] });
+	},
+
+	checkExistingSessions: async () => {
+		try {
+			const ids = await api.listActiveSessions();
+			set({ existingSessionIds: ids });
+		} catch {
+			set({ existingSessionIds: [] });
+		}
 	},
 
 	addComment: async (args) => {

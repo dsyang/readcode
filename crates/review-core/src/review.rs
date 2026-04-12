@@ -168,8 +168,8 @@ impl ReviewSession {
         serde_json::from_str(&json).map_err(|e| ReviewError::Other(e.to_string()))
     }
 
-    /// List all session IDs in this repo.
-    pub fn list(repo_workdir: &Path) -> Result<Vec<String>, ReviewError> {
+    /// List all active (non-ended) session IDs in this repo.
+    pub fn list_active(repo_workdir: &Path) -> Result<Vec<String>, ReviewError> {
         let dir = sessions_dir(repo_workdir);
         if !dir.exists() {
             return Ok(Vec::new());
@@ -178,11 +178,25 @@ impl ReviewSession {
         for entry in fs::read_dir(&dir).map_err(|e| ReviewError::Other(e.to_string()))? {
             let entry = entry.map_err(|e| ReviewError::Other(e.to_string()))?;
             let name = entry.file_name().to_string_lossy().to_string();
+            // Skip ended sessions
+            if name.contains("-ended") {
+                continue;
+            }
             if let Some(id) = name.strip_suffix(".json") {
                 ids.push(id.to_string());
             }
         }
         Ok(ids)
+    }
+
+    /// End a session: rename its file to {id}-ended.json.
+    pub fn end(repo_workdir: &Path, session_id: &str) -> Result<(), ReviewError> {
+        let from = session_path(repo_workdir, session_id);
+        let to = sessions_dir(repo_workdir).join(format!("{}-ended.json", session_id));
+        if from.exists() {
+            fs::rename(&from, &to).map_err(|e| ReviewError::Other(e.to_string()))?;
+        }
+        Ok(())
     }
 
     /// Add a comment and auto-save.

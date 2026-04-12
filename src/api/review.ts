@@ -20,8 +20,12 @@ export async function loadSession(sessionId: string): Promise<ReviewSession> {
 	return invoke<ReviewSession>("load_session", { sessionId });
 }
 
-export async function listSessions(): Promise<string[]> {
-	return invoke<string[]>("list_sessions");
+export async function listActiveSessions(): Promise<string[]> {
+	return invoke<string[]>("list_active_sessions");
+}
+
+export async function endSession(): Promise<void> {
+	return invoke<void>("end_session");
 }
 
 export async function addComment(args: AddCommentArgs): Promise<ReviewSession> {

@@ -111,11 +111,26 @@ pub fn load_session(
 }
 
 #[tauri::command]
-pub fn list_sessions(repo_state: State<RepoState>) -> Result<Vec<String>, String> {
+pub fn list_active_sessions(repo_state: State<RepoState>) -> Result<Vec<String>, String> {
     let repo_guard = repo_state.0.lock().unwrap();
     let repo = repo_guard.as_ref().ok_or("No repository is open")?;
     let workdir = repo.workdir().ok_or("Bare repository")?;
-    ReviewSession::list(workdir).map_err(|e| e.to_string())
+    ReviewSession::list_active(workdir).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn end_session(
+    repo_state: State<RepoState>,
+    session_state: State<SessionState>,
+) -> Result<(), String> {
+    let mut guard = session_state.0.lock().unwrap();
+    if let Some(session) = guard.take() {
+        let repo_guard = repo_state.0.lock().unwrap();
+        let repo = repo_guard.as_ref().ok_or("No repository is open")?;
+        let workdir = repo.workdir().ok_or("Bare repository")?;
+        ReviewSession::end(workdir, &session.session.id).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

@@ -8,9 +8,11 @@ export function CommentPanel() {
 	const session = useReviewStore((s) => s.session);
 	const isSessionActive = useReviewStore((s) => s.isSessionActive);
 	const startSession = useReviewStore((s) => s.startSession);
+	const resumeSession = useReviewStore((s) => s.resumeSession);
 	const endSession = useReviewStore((s) => s.endSession);
 	const exportSession = useReviewStore((s) => s.exportSession);
 	const pendingComment = useReviewStore((s) => s.pendingComment);
+	const existingSessionIds = useReviewStore((s) => s.existingSessionIds);
 
 	const currentBranch = useSelectionStore((s) => s.currentBranch);
 	const selectedCommitOids = useSelectionStore((s) => s.selectedCommitOids);
@@ -50,15 +52,34 @@ export function CommentPanel() {
 	if (!isSessionActive) {
 		return (
 			<div className="flex flex-col items-center justify-center h-full gap-3 p-4 text-sm">
+				{existingSessionIds.length > 0 && (
+					<div className="w-full border border-zinc-700 rounded p-3 bg-zinc-800/50">
+						<p className="text-zinc-400 text-xs mb-2">
+							{existingSessionIds.length} unfinished review{existingSessionIds.length > 1 ? "s" : ""} found:
+						</p>
+						{existingSessionIds.map((id) => (
+							<button
+								key={id}
+								onClick={() => resumeSession(id)}
+								className="w-full text-left px-2 py-1.5 hover:bg-zinc-700 rounded text-xs"
+							>
+								<span className="text-blue-400">Resume</span>
+								<span className="text-zinc-500 font-mono ml-2">{id.substring(0, 8)}...</span>
+							</button>
+						))}
+					</div>
+				)}
 				<p className="text-zinc-500 text-center">
-					Start a review session to leave comments on the diff.
+					{existingSessionIds.length > 0
+						? "Or start a new review session."
+						: "Start a review session to leave comments on the diff."}
 				</p>
 				<button
 					onClick={handleStartSession}
 					disabled={!mergedDiff}
 					className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-600 disabled:text-zinc-400 rounded text-white font-medium"
 				>
-					Start Review
+					Start New Review
 				</button>
 			</div>
 		);

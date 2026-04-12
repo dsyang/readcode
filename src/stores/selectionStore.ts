@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { CommitInfo, CommitRange, FileDiffContent, MergedDiff } from "../api/types";
 import { getCommits, getFileDiffContent, getMergedDiff, openRepo } from "../api/git";
+import { useReviewStore } from "./reviewStore";
 
 const RECENT_REPOS_KEY = "readcode:recentRepos";
 const MAX_RECENT_REPOS = 10;
@@ -77,6 +78,9 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 	isDiffLoading: false,
 
 	openRepository: async (path: string) => {
+		// Clear any active review when switching repos
+		useReviewStore.getState().clearSession();
+
 		set({ isLoading: true, error: null });
 		try {
 			const info = await openRepo(path);
@@ -97,6 +101,9 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 				lastClickedFilePath: null,
 				fileDiffContents: new Map(),
 			});
+
+			// Check for existing active sessions in the new repo
+			useReviewStore.getState().checkExistingSessions();
 		} catch (e) {
 			set({ isLoading: false, error: String(e) });
 		}
@@ -208,6 +215,7 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 	},
 
 	closeRepository: () => {
+		useReviewStore.getState().clearSession();
 		set({
 			repoPath: null,
 			currentBranch: null,
