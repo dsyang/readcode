@@ -11,6 +11,11 @@
 #   - ~/.tauri/readcode.env containing:
 #       TAURI_SIGNING_PRIVATE_KEY=<base64_key>
 #       TAURI_SIGNING_PRIVATE_KEY_PASSWORD=
+#     And on Mac, for codesigning + notarization:
+#       APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+#       APPLE_ID="your-apple-id@example.com"
+#       APPLE_PASSWORD="app-specific-password"   # appleid.apple.com → Sign-In and Security → App-Specific Passwords
+#       APPLE_TEAM_ID="TEAMID"
 #   - Rust target aarch64-apple-darwin installed on Mac:
 #       rustup target add aarch64-apple-darwin
 
