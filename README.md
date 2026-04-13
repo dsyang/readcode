@@ -14,11 +14,19 @@ Inspired by Sublime Merge (commit graph, multi-select commits) and VSCode (side-
 - **Session persistence** to `.ai-review/sessions/*.json` for feeding back to AI agents
 - **"Copy for AI" export** — one-click copy of session JSON to clipboard
 
-## Build Transcripts
+## Plans and Session transcripts
 
-This app was built in a single Claude Code session. Full transcript with linked commits:
+See the [`plans/`](plans/) folder for design docs, todos, and session transcripts.
 
-https://gisthost.github.io/?6f7793b700bf2ad8af027f5f01c7ddd1/index.html
+- [`plans/initial_plan/`](plans/initial_plan/) — original build plan (Phases 1–3)
+  - [`plan.md`](plans/initial_plan/plan.md) — architecture and phase breakdown
+  - [`todos.md`](plans/initial_plan/todos.md) — completed work and Phase 4 remaining tasks
+  - [`sessions.md`](plans/initial_plan/sessions.md) — Claude Code session transcripts
+
+- [`plans/auto-update/`](plans/auto-update/) — auto-update + release build infrastructure
+  - [`plan.md`](plans/auto-update/plan.md) — updater plugin, signing, release scripts, GitHub Pages
+  - [`todos.md`](plans/auto-update/todos.md) — implementation checklist
+  - [`sessions.md`](plans/auto-update/sessions.md) — Claude Code session transcripts
 
 Auto-update infrastructure and first release:
 
@@ -36,7 +44,3 @@ npm run tauri dev
 # Build for production
 cargo tauri build
 ```
-
-## Status
-
-See [TODO.md](TODO.md) for current project status. Phases 1-3 complete, Phase 4 (remote connections) remaining.
