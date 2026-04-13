@@ -1,11 +1,11 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "notes": "See the full release on GitHub.",
-  "pub_date": "2026-04-12T23:22:58Z",
+  "pub_date": "2026-04-13T18:32:20Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://github.com/dsyang/readcode/releases/download/untagged-babd1a3f9486668802e1/ReadCode.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTU2ZxMVBsTDFlTG5hTTBQRys0ZGsveVdsWjRVakoyazlXZDc1Snd5MzdBYXNCU0JLcXFXNTVZVjl5SFNjRXlqZWQzT3d6VHEvWkxCbE1McFdoWGZHUDZvN1ErRm0rUWd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc2MDM2MTY3CWZpbGU6UmVhZENvZGUuYXBwLnRhci5negp5clFDOStEQlFIUHNUTncybUxxdmU2MklIUlV1TU5Td0ppb0NUNHlzMXRJTThTa2FIVDRvY1dMWU53aWpqQzFsVW9MUmZoUGc4WTdaYjgwd2J3N09CQT09Cg=="
+      "url": "https://github.com/dsyang/readcode/releases/download/untagged-66ff090c965cea49d842/ReadCode.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTU2ZxMVBsTDFlTG1oUERpRFYzV01SSm91RVhJcURDTGdvdkVtRHRQc05lMVV3cFllcUIrLzRXTjFqVFBDNlNRWWx5ci9tT2NTcTdZc3V4cVk0SENVcWRER3dPRTBtTkFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc2MTA1MTA4CWZpbGU6UmVhZENvZGUuYXBwLnRhci5negpMdVBzZ2tialhhbzkzWURIc1ZaenBXVEpiZVZCS2dWeHNNMFhUR1J6b2E2WW9TL0l1RmpMVlNqem5KZ3NoSm9YZ2xCUVhuUmI2aElMZzUxWGtVc05DQT09Cg=="
     },
     "windows-x86_64": {
       "url": "",
