@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { CommitInfo, CommitRange, FileDiffContent, MergedDiff } from "../api/types";
 import { getCommits, getFileDiffContent, getMergedDiff, openRepo } from "../api/git";
 import { useReviewStore } from "./reviewStore";
+import { diag, startTimer, hashPath, classifyFrontendError } from "../diagnostics";
 
 const RECENT_REPOS_KEY = "readcode:recentRepos";
 const MAX_RECENT_REPOS = 10;
@@ -83,6 +84,9 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		// Clear any active review when switching repos
 		useReviewStore.getState().clearSession();
 
+		diag.repoOpenAttempt();
+		const elapsed = startTimer();
+
 		set({
 			isLoading: true,
 			error: null,
@@ -98,6 +102,8 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		try {
 			const info = await openRepo(path);
 			const commits = await getCommits(50);
+			const hashedId = await hashPath(path);
+			diag.repoOpenSuccess(hashedId, commits.length, elapsed());
 			const newRecent = addToRecent(path, get().recentRepos);
 			saveRecentRepos(newRecent);
 			set({
@@ -118,6 +124,7 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 			// Check for existing active sessions in the new repo
 			useReviewStore.getState().checkExistingSessions();
 		} catch (e) {
+			diag.repoOpenFailure(classifyFrontendError(e));
 			set({ isLoading: false, error: String(e) });
 		}
 	},
@@ -224,6 +231,7 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		}
 
 		set({ selectedFilePaths: newSelection, lastClickedFilePath: path });
+		diag.fileSelected(newSelection.size);
 		fetchFileContents(newSelection, state);
 	},
 
@@ -318,9 +326,12 @@ async function fetchDiff(
 	}
 
 	const range = buildRange(selectedOids, includeWorkingTree, allCommits);
+	const elapsed = startTimer();
 	useSelectionStore.setState({ isDiffLoading: true });
 	try {
 		const diff = await getMergedDiff(range);
+		const totalLines = diff.files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+		diag.diffLoaded(selectedOids.size, diff.files.length, totalLines, elapsed());
 		// Default: select all files
 		const allPaths = new Set(diff.files.map((f) => f.path));
 		useSelectionStore.setState({
@@ -334,6 +345,7 @@ async function fetchDiff(
 		const state = useSelectionStore.getState();
 		fetchFileContents(allPaths, state);
 	} catch (e) {
+		diag.ipcError("get_merged_diff", classifyFrontendError(e));
 		useSelectionStore.setState({ isDiffLoading: false, error: String(e) });
 	}
 }

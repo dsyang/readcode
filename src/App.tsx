@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 import { Toolbar } from "./components/layout/Toolbar";
@@ -8,6 +8,8 @@ import { DiffView } from "./components/diff/DiffView";
 import { CommentPanel } from "./components/review/CommentPanel";
 import { useSelectionStore } from "./stores/selectionStore";
 import { useReviewStore } from "./stores/reviewStore";
+import { diag } from "./diagnostics";
+import { useLogPath } from "./hooks/useLogPath";
 
 function App() {
 	const error = useSelectionStore((s) => s.error);
@@ -15,6 +17,10 @@ function App() {
 	const [reviewPanelVisible, setReviewPanelVisible] = useState(true);
 	const toggleSidebar = useCallback(() => setSidebarVisible((v) => !v), []);
 	const toggleReviewPanel = useCallback(() => setReviewPanelVisible((v) => !v), []);
+
+	useEffect(() => {
+		diag.appContext(window.screen.width, window.screen.height, navigator.language);
+	}, []);
 
 	return (
 		<div className="flex flex-col h-screen bg-zinc-900 text-white">
@@ -76,6 +82,7 @@ function StatusBar() {
 	const selectedFilePaths = useSelectionStore((s) => s.selectedFilePaths);
 	const session = useReviewStore((s) => s.session);
 	const editMode = useReviewStore((s) => s.editMode);
+	const { showLogs } = useLogPath();
 
 	return (
 		<div className="flex items-center px-4 py-1 bg-zinc-800 border-t border-zinc-700 text-xs text-zinc-500">
@@ -110,6 +117,13 @@ function StatusBar() {
 					)}
 				</span>
 			)}
+			<button
+				onClick={showLogs}
+				className="ml-3 text-zinc-600 hover:text-zinc-400"
+				title="Open log folder (for bug reports)"
+			>
+				Show Logs
+			</button>
 		</div>
 	);
 }
