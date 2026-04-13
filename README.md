@@ -28,10 +28,6 @@ See the [`plans/`](plans/) folder for design docs, todos, and session transcript
   - [`todos.md`](plans/auto-update/todos.md) — implementation checklist
   - [`sessions.md`](plans/auto-update/sessions.md) — Claude Code session transcripts
 
-Auto-update infrastructure and first release:
-
-https://gisthost.github.io/?77d207405f78ac67b53db6223bd2c7b4/index.html
-
 ## Development
 
 ```bash
