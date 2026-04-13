@@ -40,3 +40,19 @@ npm run tauri dev
 # Build for production
 cargo tauri build
 ```
+
+### Windows: use `run-dev.bat`
+
+On Windows, run `run-dev.bat` instead of `npm run tauri dev` directly. It calls
+`vcvars64.bat` to load the MSVC toolchain into the environment before invoking
+Tauri. Two things break without it:
+
+1. **`link.exe` not found / C++ build tools missing.** Rust on Windows uses the
+   MSVC linker, which only exists on `PATH` inside a "Developer Command Prompt"
+   shell. A plain terminal won't find it and `cargo` fails mid-build.
+2. **Git Bash's GNU `link` shadows MSVC's `link.exe`.** If you run from Git Bash
+   without `vcvars64`, coreutils' `link` wins the `PATH` lookup and cargo
+   invokes the wrong binary, producing confusing `link: extra operand` errors.
+
+The batch file loads `vcvars64.bat`, prepends `%USERPROFILE%\.cargo\bin` to
+`PATH`, then runs `npm run tauri dev` — so cargo always sees the correct linker.
