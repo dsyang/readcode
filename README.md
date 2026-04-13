@@ -14,7 +14,7 @@ Inspired by Sublime Merge (commit graph, multi-select commits) and VSCode (side-
 - **Session persistence** to `.ai-review/sessions/*.json` for feeding back to AI agents
 - **"Copy for AI" export** — one-click copy of session JSON to clipboard
 
-## Plans
+## Plans and Session transcripts
 
 See the [`plans/`](plans/) folder for design docs, todos, and session transcripts.
 
@@ -28,6 +28,10 @@ See the [`plans/`](plans/) folder for design docs, todos, and session transcript
   - [`todos.md`](plans/auto-update/todos.md) — implementation checklist
   - [`sessions.md`](plans/auto-update/sessions.md) — Claude Code session transcripts
 
+Auto-update infrastructure and first release:
+
+https://gisthost.github.io/?77d207405f78ac67b53db6223bd2c7b4/index.html
+
 ## Development
 
 ```bash
@@ -40,7 +44,3 @@ npm run tauri dev
 # Build for production
 cargo tauri build
 ```
-
-## Status
-
-See [plans/initial_plan/todos.md](plans/initial_plan/todos.md) for current project status. Phases 1–3 complete, Phase 4 (remote connections) remaining.

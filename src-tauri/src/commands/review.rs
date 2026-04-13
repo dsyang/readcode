@@ -5,6 +5,7 @@ use review_core::review::{
 };
 use tauri::State;
 
+use super::diagnostics::session_id as diag_session_id;
 use super::git::RepoState;
 
 pub struct SessionState(pub Mutex<Option<ReviewSession>>);
@@ -85,6 +86,9 @@ pub fn create_session(
 
     let result = session.clone();
     *session_state.0.lock().unwrap() = Some(session);
+
+    tracing::info!(event = "session_created", session_id = %diag_session_id());
+
     Ok(result)
 }
 
@@ -107,6 +111,9 @@ pub fn load_session(
     let session = ReviewSession::load(workdir, &session_id).map_err(|e| e.to_string())?;
     let result = session.clone();
     *session_state.0.lock().unwrap() = Some(session);
+
+    tracing::info!(event = "session_loaded", session_id = %diag_session_id());
+
     Ok(result)
 }
 
@@ -125,10 +132,20 @@ pub fn end_session(
 ) -> Result<(), String> {
     let mut guard = session_state.0.lock().unwrap();
     if let Some(session) = guard.take() {
+        let comment_count = session.comments.len() as u64;
+        let edit_count = session.edits.len() as u64;
+
         let repo_guard = repo_state.0.lock().unwrap();
         let repo = repo_guard.as_ref().ok_or("No repository is open")?;
         let workdir = repo.workdir().ok_or("Bare repository")?;
         ReviewSession::end(workdir, &session.session.id).map_err(|e| e.to_string())?;
+
+        tracing::info!(
+            event = "session_ended",
+            comment_count = comment_count,
+            edit_count = edit_count,
+            session_id = %diag_session_id(),
+        );
     }
     Ok(())
 }
@@ -139,6 +156,9 @@ pub fn add_comment(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
+    let severity = args.severity.clone();
+    let comment_type = args.comment_type.clone();
+
     let mut guard = session_state.0.lock().unwrap();
     let session = guard.as_mut().ok_or("No active session")?;
 
@@ -165,6 +185,13 @@ pub fn add_comment(
     let workdir = repo.workdir().ok_or("Bare repository")?;
     session.save(workdir).map_err(|e| e.to_string())?;
 
+    tracing::info!(
+        event = "comment_added",
+        severity = %severity,
+        comment_type = %comment_type,
+        session_id = %diag_session_id(),
+    );
+
     Ok(session.clone())
 }
 
@@ -183,6 +210,8 @@ pub fn toggle_comment_resolved(
     let workdir = repo.workdir().ok_or("Bare repository")?;
     session.save(workdir).map_err(|e| e.to_string())?;
 
+    tracing::info!(event = "comment_resolved", session_id = %diag_session_id());
+
     Ok(session.clone())
 }
 
@@ -200,6 +229,8 @@ pub fn delete_comment(
     let repo = repo_guard.as_ref().ok_or("No repository is open")?;
     let workdir = repo.workdir().ok_or("Bare repository")?;
     session.save(workdir).map_err(|e| e.to_string())?;
+
+    tracing::info!(event = "comment_deleted", session_id = %diag_session_id());
 
     Ok(session.clone())
 }
@@ -230,6 +261,8 @@ pub fn add_edit(
     let workdir = repo.workdir().ok_or("Bare repository")?;
     session.save(workdir).map_err(|e| e.to_string())?;
 
+    tracing::info!(event = "edit_applied", session_id = %diag_session_id());
+
     Ok(session.clone())
 }
 
@@ -237,7 +270,11 @@ pub fn add_edit(
 pub fn export_session(session_state: State<SessionState>) -> Result<String, String> {
     let guard = session_state.0.lock().unwrap();
     let session = guard.as_ref().ok_or("No active session")?;
-    session.export_json().map_err(|e| e.to_string())
+    let result = session.export_json().map_err(|e| e.to_string())?;
+
+    tracing::info!(event = "session_exported", session_id = %diag_session_id());
+
+    Ok(result)
 }
 
 #[tauri::command]

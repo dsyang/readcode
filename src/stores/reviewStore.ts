@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { ReviewSession, AddCommentArgs } from "../api/reviewTypes";
 import * as api from "../api/review";
 import { useSelectionStore } from "./selectionStore";
+import { diag } from "../diagnostics";
 
 interface ReviewState {
 	session: ReviewSession | null;
@@ -49,7 +50,10 @@ export interface ScrollTarget {
 	side: "old" | "new";
 }
 
-export const useReviewStore = create<ReviewState>((set) => ({
+// Tracks when the current session was created/resumed, for duration_ms in session_ended.
+let sessionStartTime: number | null = null;
+
+export const useReviewStore = create<ReviewState>((set, get) => ({
 	session: null,
 	isSessionActive: false,
 	editMode: false,
@@ -60,6 +64,8 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	startSession: async (branch, baseCommit, headCommit, reviewedCommits) => {
 		try {
 			const session = await api.createSession(branch, baseCommit, headCommit, reviewedCommits);
+			sessionStartTime = Date.now();
+			diag.sessionCreated();
 			set({ session, isSessionActive: true, existingSessionIds: [] });
 		} catch (e) {
 			console.error("Failed to create session:", e);
@@ -69,6 +75,8 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	resumeSession: async (sessionId) => {
 		try {
 			const session = await api.loadSession(sessionId);
+			sessionStartTime = Date.now();
+			diag.sessionLoaded();
 			set({ session, isSessionActive: true, existingSessionIds: [] });
 
 			// Restore commit selection from the session
@@ -83,6 +91,12 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	},
 
 	endSession: async () => {
+		const { session } = get();
+		if (session) {
+			const durationMs = sessionStartTime ? Date.now() - sessionStartTime : 0;
+			diag.sessionEnded(session.comments.length, session.edits.length, durationMs);
+			sessionStartTime = null;
+		}
 		try {
 			await api.endSession();
 		} catch (e) {
@@ -98,6 +112,11 @@ export const useReviewStore = create<ReviewState>((set) => ({
 
 	// Clear without renaming file — used when switching repos
 	clearSession: () => {
+		const { session } = get();
+		if (session !== null) {
+			diag.sessionAbandoned(session.comments.length, session.edits.length);
+		}
+		sessionStartTime = null;
 		set({ session: null, isSessionActive: false, editMode: false, pendingComment: null, existingSessionIds: [] });
 	},
 
@@ -113,6 +132,7 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	addComment: async (args) => {
 		try {
 			const session = await api.addComment(args);
+			diag.commentAdded(args.severity, args.comment_type);
 			set({ session, pendingComment: null });
 		} catch (e) {
 			console.error("Failed to add comment:", e);
@@ -122,6 +142,7 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	toggleResolved: async (commentId) => {
 		try {
 			const session = await api.toggleCommentResolved(commentId);
+			diag.commentResolved();
 			set({ session });
 		} catch (e) {
 			console.error("Failed to toggle resolved:", e);
@@ -131,6 +152,7 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	deleteComment: async (commentId) => {
 		try {
 			const session = await api.deleteComment(commentId);
+			diag.commentDeleted();
 			set({ session });
 		} catch (e) {
 			console.error("Failed to delete comment:", e);
@@ -138,7 +160,9 @@ export const useReviewStore = create<ReviewState>((set) => ({
 	},
 
 	exportSession: async () => {
-		return api.exportSession();
+		const result = await api.exportSession();
+		diag.sessionExported();
+		return result;
 	},
 
 	setSummary: async (summary) => {

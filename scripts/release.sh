@@ -17,7 +17,7 @@
 set -e
 
 VERSION=$1
-RELEASES_REPO="dsyang/readcode-releases"
+RELEASES_REPO="dsyang/readcode"
 
 if [ -z "$VERSION" ]; then
   echo "Usage: ./scripts/release.sh <version>"
@@ -48,30 +48,29 @@ jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > /tmp/_tauri.conf.json \
   && mv /tmp/_tauri.conf.json src-tauri/tauri.conf.json
 
 # Update src-tauri/Cargo.toml version (first occurrence = the [package] version)
-if [[ "$PLATFORM" == "Darwin" ]]; then
-  sed -i '' "0,/^version = \".*\"/{s/^version = \".*\"/version = \"$VERSION\"/}" src-tauri/Cargo.toml
-else
-  sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"$VERSION\"/}" src-tauri/Cargo.toml
-fi
+awk -v ver="$VERSION" '/^version = "/ && !done { sub(/^version = ".*"/, "version = \"" ver "\""); done=1 } 1' \
+  src-tauri/Cargo.toml > /tmp/_Cargo.toml && mv /tmp/_Cargo.toml src-tauri/Cargo.toml
 
 echo "==> Building release for $PLATFORM..."
 if [[ "$PLATFORM" == "Darwin" ]]; then
   npm run tauri build -- --target aarch64-apple-darwin
-  BUNDLE_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
-  ARTIFACT=$(find "$BUNDLE_DIR" -name "*.dmg" | head -1)
+  INSTALLER=$(find "target/aarch64-apple-darwin/release/bundle/dmg" -name "*.dmg" | head -1)
+  UPDATER=$(find "target/aarch64-apple-darwin/release/bundle/macos" -name "*.tar.gz" | head -1)
 else
   # Windows via Git Bash — builds x86_64 MSI
   npm run tauri build
-  BUNDLE_DIR="src-tauri/target/release/bundle/msi"
-  ARTIFACT=$(find "$BUNDLE_DIR" -name "*.msi" | head -1)
+  INSTALLER=$(find "target/release/bundle/msi" -name "*.msi" | head -1)
+  UPDATER=$(find "target/release/bundle/msi" -name "*.msi.zip" | head -1)
 fi
 
-if [ -z "$ARTIFACT" ]; then
-  echo "Error: No artifact found in $BUNDLE_DIR"
+if [ -z "$INSTALLER" ]; then
+  echo "Error: No installer artifact found"
   exit 1
 fi
-SIGFILE="${ARTIFACT}.sig"
-echo "==> Built: $ARTIFACT"
+SIGFILE="${UPDATER}.sig"
+echo "==> Built installer: $INSTALLER"
+echo "==> Built updater:   $UPDATER"
+echo "==> Signature:       $SIGFILE"
 
 echo "==> Creating draft release $TAG on $RELEASES_REPO (if not exists)..."
 gh release create "$TAG" \
@@ -84,7 +83,7 @@ gh release create "$TAG" \
 echo "==> Uploading artifacts..."
 gh release upload "$TAG" \
   --repo "$RELEASES_REPO" \
-  "$ARTIFACT" "$SIGFILE" \
+  "$INSTALLER" "$UPDATER" "$SIGFILE" \
   --clobber
 
 echo ""
