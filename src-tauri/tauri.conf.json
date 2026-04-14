@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ReadCode",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "identifier": "com.dsyang.readcode",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -35,7 +35,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJFNUVCRDk0NEZBRDdFOTIKUldTU2ZxMVBsTDFlTHFFM2VTdk1yYTcvYlphbmFXOUlETjZWSWJJYjNZUG1uS2VmbDRmZTdib24K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDQTQwMkY1MzQxNDdCMTMKUldRVGV4UTA5UUtrVEV5L3NYV2pOQThHaVpBZzZPbG5RRkxuTE1nR2FGRi9JVHNtRkNvbjh3K2YK",
       "endpoints": [
         "https://dsyang.github.io/readcode/latest.json"
       ]
