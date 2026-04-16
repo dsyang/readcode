@@ -1,8 +1,19 @@
 import { create } from "zustand";
 import type { CommitInfo, CommitRange, FileDiffContent, MergedDiff } from "../api/types";
 import { getCommits, getFileDiffContent, getMergedDiff, openRepo } from "../api/git";
+import { disconnectRemote, openRemoteRepo } from "../api/remote";
 import { useReviewStore } from "./reviewStore";
 import { diag, startTimer, hashPath, classifyFrontendError } from "../diagnostics";
+
+export type ConnectionMode = "local" | "remote";
+
+export type RecentRepo =
+	| { type: "local"; path: string }
+	| { type: "remote"; sshHost: string; repoPath: string; profileName: string };
+
+function recentRepoKey(r: RecentRepo): string {
+	return r.type === "local" ? r.path : `${r.sshHost}:${r.repoPath}`;
+}
 
 const RECENT_REPOS_KEY = "readcode:recentRepos";
 const MAX_RECENT_REPOS = 10;
@@ -11,10 +22,12 @@ interface SelectionState {
 	// Repository
 	repoPath: string | null;
 	currentBranch: string | null;
+	connectionMode: ConnectionMode | null;
+	remoteProfileName: string | null;
 	commits: CommitInfo[];
 	isLoading: boolean;
 	error: string | null;
-	recentRepos: string[];
+	recentRepos: RecentRepo[];
 
 	// Commit selection
 	selectedCommitOids: Set<string>;
@@ -32,7 +45,13 @@ interface SelectionState {
 
 	// Actions
 	openRepository: (path: string) => Promise<void>;
+	openRemoteRepository: (
+		sshHost: string,
+		repoPath: string,
+		profileName: string,
+	) => Promise<void>;
 	reloadRepository: () => Promise<void>;
+	reloadWorkingTree: () => void;
 	closeRepository: () => void;
 	handleCommitClick: (oid: string, metaKey: boolean, shiftKey: boolean) => void;
 	toggleWorkingTree: () => void;
@@ -44,27 +63,36 @@ interface SelectionState {
 	ensureFileSelected: (filePath: string) => void;
 }
 
-function loadRecentRepos(): string[] {
+function loadRecentRepos(): RecentRepo[] {
 	try {
 		const stored = localStorage.getItem(RECENT_REPOS_KEY);
-		return stored ? JSON.parse(stored) : [];
+		if (!stored) return [];
+		const parsed = JSON.parse(stored);
+		// Migrate old format (string[]) to new format
+		if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string") {
+			return parsed.map((p: string) => ({ type: "local" as const, path: p }));
+		}
+		return parsed;
 	} catch {
 		return [];
 	}
 }
 
-function saveRecentRepos(repos: string[]) {
+function saveRecentRepos(repos: RecentRepo[]) {
 	localStorage.setItem(RECENT_REPOS_KEY, JSON.stringify(repos));
 }
 
-function addToRecent(path: string, existing: string[]): string[] {
-	const filtered = existing.filter((r) => r !== path);
-	return [path, ...filtered].slice(0, MAX_RECENT_REPOS);
+function addToRecent(entry: RecentRepo, existing: RecentRepo[]): RecentRepo[] {
+	const key = recentRepoKey(entry);
+	const filtered = existing.filter((r) => recentRepoKey(r) !== key);
+	return [entry, ...filtered].slice(0, MAX_RECENT_REPOS);
 }
 
 export const useSelectionStore = create<SelectionState>((set, get) => ({
 	repoPath: null,
 	currentBranch: null,
+	connectionMode: null,
+	remoteProfileName: null,
 	commits: [],
 	isLoading: false,
 	error: null,
@@ -104,11 +132,13 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 			const commits = await getCommits(50);
 			const hashedId = await hashPath(path);
 			diag.repoOpenSuccess(hashedId, commits.length, elapsed());
-			const newRecent = addToRecent(path, get().recentRepos);
+			const newRecent = addToRecent({ type: "local", path }, get().recentRepos);
 			saveRecentRepos(newRecent);
 			set({
 				repoPath: info.workdir,
 				currentBranch: info.current_branch,
+				connectionMode: "local",
+				remoteProfileName: null,
 				commits,
 				isLoading: false,
 				recentRepos: newRecent,
@@ -129,15 +159,67 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		}
 	},
 
+	openRemoteRepository: async (
+		sshHost: string,
+		repoPath: string,
+		profileName: string,
+	) => {
+		useReviewStore.getState().clearSession();
+
+		set({
+			isLoading: true,
+			error: null,
+			commits: [],
+			selectedCommitOids: new Set(),
+			lastClickedCommitOid: null,
+			includeWorkingTree: false,
+			mergedDiff: null,
+			selectedFilePaths: new Set(),
+			lastClickedFilePath: null,
+			fileDiffContents: new Map(),
+		});
+		try {
+			const info = await openRemoteRepo(sshHost, repoPath);
+			const commits = await getCommits(50);
+			const newRecent = addToRecent(
+				{ type: "remote", sshHost, repoPath, profileName },
+				get().recentRepos,
+			);
+			saveRecentRepos(newRecent);
+			set({
+				repoPath: info.workdir,
+				currentBranch: info.current_branch,
+				connectionMode: "remote",
+				remoteProfileName: profileName,
+				commits,
+				isLoading: false,
+				recentRepos: newRecent,
+				selectedCommitOids: new Set(),
+				lastClickedCommitOid: null,
+				includeWorkingTree: false,
+				mergedDiff: null,
+				selectedFilePaths: new Set(),
+				lastClickedFilePath: null,
+				fileDiffContents: new Map(),
+			});
+		} catch (e) {
+			set({ isLoading: false, error: String(e) });
+		}
+	},
+
 	reloadRepository: async () => {
 		const state = get();
 		if (!state.repoPath) return;
 		set({ isLoading: true, error: null });
 		try {
-			const info = await openRepo(state.repoPath);
+			// For local repos, re-open to refresh branch info.
+			// For remote, the connection is already live — just refresh commits.
+			if (state.connectionMode !== "remote") {
+				const info = await openRepo(state.repoPath);
+				set({ currentBranch: info.current_branch });
+			}
 			const commits = await getCommits(50);
 			set({
-				currentBranch: info.current_branch,
 				commits,
 				isLoading: false,
 				selectedCommitOids: new Set(),
@@ -151,6 +233,14 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		} catch (e) {
 			set({ isLoading: false, error: String(e) });
 		}
+	},
+
+	reloadWorkingTree: () => {
+		const state = get();
+		// Re-fetch the current diff and file contents, preserving selections.
+		// Clears cached file contents so they're fetched fresh.
+		set({ fileDiffContents: new Map() });
+		fetchDiff(state.selectedCommitOids, state.includeWorkingTree, state.commits);
 	},
 
 	handleCommitClick: (oid: string, metaKey: boolean, shiftKey: boolean) => {
@@ -237,9 +327,12 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 
 	closeRepository: () => {
 		useReviewStore.getState().clearSession();
+		const wasRemote = get().connectionMode === "remote";
 		set({
 			repoPath: null,
 			currentBranch: null,
+			connectionMode: null,
+			remoteProfileName: null,
 			commits: [],
 			selectedCommitOids: new Set(),
 			lastClickedCommitOid: null,
@@ -249,6 +342,9 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 			lastClickedFilePath: null,
 			fileDiffContents: new Map(),
 		});
+		if (wasRemote) {
+			disconnectRemote().catch(() => {});
+		}
 	},
 
 	selectAllFiles: () => {

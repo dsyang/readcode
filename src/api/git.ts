@@ -9,6 +9,10 @@ export async function getCommits(maxCount?: number): Promise<CommitInfo[]> {
 	return invoke<CommitInfo[]>("get_commits", { maxCount: maxCount ?? 50 });
 }
 
+export async function getCommitMessage(oid: string): Promise<string> {
+	return invoke<string>("get_commit_message", { oid });
+}
+
 export async function getMergedDiff(range: CommitRange): Promise<MergedDiff> {
 	return invoke<MergedDiff>("get_merged_diff", { range });
 }

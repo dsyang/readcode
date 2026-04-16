@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useSelectionStore } from "../../stores/selectionStore";
+import { useSelectionStore, type RecentRepo } from "../../stores/selectionStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useUpdater } from "../../hooks/useUpdater";
+import { ConnectionDialog } from "../remote/ConnectionDialog";
 
 interface ToolbarProps {
 	sidebarVisible: boolean;
@@ -20,7 +21,10 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 	const recentRepos = useSelectionStore((s) => s.recentRepos);
 	const clearSession = useReviewStore((s) => s.clearSession);
 	const checkExistingSessions = useReviewStore((s) => s.checkExistingSessions);
+	const connectionMode = useSelectionStore((s) => s.connectionMode);
+	const remoteProfileName = useSelectionStore((s) => s.remoteProfileName);
 	const [showDropdown, setShowDropdown] = useState(false);
+	const [showRemoteDialog, setShowRemoteDialog] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const { updateAvailable, updateVersion, installing, installUpdate } = useUpdater();
 
@@ -48,9 +52,16 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 		}
 	}
 
-	function handleOpenRecent(path: string) {
+	const openRemoteRepository = useSelectionStore((s) => s.openRemoteRepository);
+
+	function handleOpenRecent(entry: RecentRepo) {
 		setShowDropdown(false);
-		openRepository(path);
+		if (entry.type === "local") {
+			openRepository(entry.path);
+		} else {
+			clearSession();
+			openRemoteRepository(entry.sshHost, entry.repoPath, entry.profileName);
+		}
 	}
 
 	function handleClose() {
@@ -63,7 +74,7 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 		? repoPath.replace(/\/$/, "").split("/").pop()
 		: null;
 
-	const hasDropdown = repoPath || recentRepos.length > 0;
+	const hasDropdown = true;
 
 	return (
 		<div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-700 text-sm">
@@ -103,6 +114,14 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 							onClick={() => setShowDropdown(!showDropdown)}
 							className="flex items-center gap-1.5 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-white font-medium"
 						>
+							{connectionMode === "remote" && (
+								<span
+									className="text-[10px] px-1.5 py-0.5 bg-emerald-700/70 text-emerald-100 rounded"
+									title={remoteProfileName ?? "Remote connection"}
+								>
+									REMOTE
+								</span>
+							)}
 							{repoName}
 							<span className="text-[10px] text-zinc-400">&#9660;</span>
 						</button>
@@ -140,36 +159,69 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 									Open Different Repo...
 								</button>
 								<button
+									onClick={() => {
+										setShowDropdown(false);
+										setShowRemoteDialog(true);
+									}}
+									className="w-full text-left px-3 py-2 hover:bg-zinc-700 text-sm text-zinc-200 border-b border-zinc-700"
+								>
+									Connect to Remote...
+								</button>
+								<button
 									onClick={handleClose}
 									className="w-full text-left px-3 py-2 hover:bg-zinc-700 text-sm text-zinc-400 border-b border-zinc-700"
 								>
-									Close Repository
+									{connectionMode === "remote" ? "Disconnect" : "Close Repository"}
 								</button>
 							</>
+						)}
+						{!repoPath && (
+							<button
+								onClick={() => {
+									setShowDropdown(false);
+									setShowRemoteDialog(true);
+								}}
+								className="w-full text-left px-3 py-2 hover:bg-zinc-700 text-sm text-zinc-200 border-b border-zinc-700"
+							>
+								Connect to Remote...
+							</button>
 						)}
 						{recentRepos.length > 0 && (
 							<>
 								<div className="px-3 py-1.5 text-xs text-zinc-500">
 									Recent
 								</div>
-								{recentRepos.map((path) => {
-									const name = path.replace(/\/$/, "").split("/").pop();
-									const isCurrent = path === repoPath;
+								{recentRepos.map((entry) => {
+									const key = entry.type === "local" ? entry.path : `${entry.sshHost}:${entry.repoPath}`;
+									const name = entry.type === "local"
+										? entry.path.replace(/\/$/, "").split("/").pop()
+										: entry.repoPath.replace(/\/$/, "").split("/").pop();
+									const subtitle = entry.type === "local"
+										? entry.path
+										: `${entry.sshHost}:${entry.repoPath}`;
+									const isCurrent = entry.type === "local"
+										? entry.path === repoPath
+										: connectionMode === "remote" && subtitle.endsWith(repoPath ?? "");
 									return (
 										<button
-											key={path}
-											onClick={() => handleOpenRecent(path)}
+											key={key}
+											onClick={() => handleOpenRecent(entry)}
 											className={`w-full text-left px-3 py-1.5 hover:bg-zinc-700 text-sm ${
 												isCurrent ? "bg-zinc-700/50" : ""
 											}`}
 										>
 											<div className="flex items-center gap-2">
+												{entry.type === "remote" && (
+													<span className="text-[10px] px-1 py-0.5 bg-emerald-700/70 text-emerald-100 rounded">
+														SSH
+													</span>
+												)}
 												<span className="text-zinc-200">{name}</span>
 												{isCurrent && (
 													<span className="text-[10px] text-zinc-500">current</span>
 												)}
 											</div>
-											<div className="text-xs text-zinc-500 truncate">{path}</div>
+											<div className="text-xs text-zinc-500 truncate">{subtitle}</div>
 										</button>
 									);
 								})}
@@ -242,6 +294,10 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 					)}
 				</svg>
 			</button>
+
+			{showRemoteDialog && (
+				<ConnectionDialog onClose={() => setShowRemoteDialog(false)} />
+			)}
 		</div>
 	);
 }
