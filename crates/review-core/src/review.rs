@@ -106,12 +106,12 @@ pub struct EditLineRange {
 
 // ── Persistence ─────────────────────────────────────────────────────
 
-fn sessions_dir(repo_workdir: &Path) -> PathBuf {
-    repo_workdir.join(".ai-review").join("sessions")
+fn sessions_dir(storage_dir: &Path) -> PathBuf {
+    storage_dir.join("sessions")
 }
 
-fn session_path(repo_workdir: &Path, session_id: &str) -> PathBuf {
-    sessions_dir(repo_workdir).join(format!("{}.json", session_id))
+fn session_path(storage_dir: &Path, session_id: &str) -> PathBuf {
+    sessions_dir(storage_dir).join(format!("{}.json", session_id))
 }
 
 impl ReviewSession {
@@ -142,18 +142,12 @@ impl ReviewSession {
         }
     }
 
-    /// Save to `.ai-review/sessions/{id}.json` in the repo.
-    pub fn save(&self, repo_workdir: &Path) -> Result<PathBuf, ReviewError> {
-        let dir = sessions_dir(repo_workdir);
+    /// Save to `{storage_dir}/sessions/{id}.json`.
+    pub fn save(&self, storage_dir: &Path) -> Result<PathBuf, ReviewError> {
+        let dir = sessions_dir(storage_dir);
         fs::create_dir_all(&dir).map_err(|e| ReviewError::Other(e.to_string()))?;
 
-        // Ensure .ai-review is gitignored
-        let gitignore = repo_workdir.join(".ai-review").join(".gitignore");
-        if !gitignore.exists() {
-            let _ = fs::write(&gitignore, "*\n");
-        }
-
-        let path = session_path(repo_workdir, &self.session.id);
+        let path = session_path(storage_dir, &self.session.id);
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| ReviewError::Other(e.to_string()))?;
         fs::write(&path, json).map_err(|e| ReviewError::Other(e.to_string()))?;
@@ -161,16 +155,16 @@ impl ReviewSession {
     }
 
     /// Load a session from disk.
-    pub fn load(repo_workdir: &Path, session_id: &str) -> Result<Self, ReviewError> {
-        let path = session_path(repo_workdir, session_id);
+    pub fn load(storage_dir: &Path, session_id: &str) -> Result<Self, ReviewError> {
+        let path = session_path(storage_dir, session_id);
         let json = fs::read_to_string(&path)
             .map_err(|_| ReviewError::Other(format!("Session not found: {}", session_id)))?;
         serde_json::from_str(&json).map_err(|e| ReviewError::Other(e.to_string()))
     }
 
-    /// List all active (non-ended) session IDs in this repo.
-    pub fn list_active(repo_workdir: &Path) -> Result<Vec<String>, ReviewError> {
-        let dir = sessions_dir(repo_workdir);
+    /// List all active (non-ended) session IDs.
+    pub fn list_active(storage_dir: &Path) -> Result<Vec<String>, ReviewError> {
+        let dir = sessions_dir(storage_dir);
         if !dir.exists() {
             return Ok(Vec::new());
         }
@@ -178,7 +172,6 @@ impl ReviewSession {
         for entry in fs::read_dir(&dir).map_err(|e| ReviewError::Other(e.to_string()))? {
             let entry = entry.map_err(|e| ReviewError::Other(e.to_string()))?;
             let name = entry.file_name().to_string_lossy().to_string();
-            // Skip ended sessions
             if name.contains("-ended") {
                 continue;
             }
@@ -190,9 +183,9 @@ impl ReviewSession {
     }
 
     /// End a session: rename its file to {id}-ended.json.
-    pub fn end(repo_workdir: &Path, session_id: &str) -> Result<(), ReviewError> {
-        let from = session_path(repo_workdir, session_id);
-        let to = sessions_dir(repo_workdir).join(format!("{}-ended.json", session_id));
+    pub fn end(storage_dir: &Path, session_id: &str) -> Result<(), ReviewError> {
+        let from = session_path(storage_dir, session_id);
+        let to = sessions_dir(storage_dir).join(format!("{}-ended.json", session_id));
         if from.exists() {
             fs::rename(&from, &to).map_err(|e| ReviewError::Other(e.to_string()))?;
         }

@@ -1,9 +1,10 @@
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use review_core::review::{
     CommentContext, CommentType, DiffSide, EditLineRange, LineRange, ReviewSession, Severity,
 };
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 use super::diagnostics::session_id as diag_session_id;
 use super::git::RepoState;
@@ -62,6 +63,18 @@ fn parse_severity(s: &str) -> Severity {
     }
 }
 
+/// Compute the local storage directory for the current repo's review
+/// sessions.  Lives under the Tauri app data dir, keyed by a hash of
+/// the repo path (works for both local and remote repos).
+fn review_storage_dir(app: &AppHandle, repo_state: &RepoState) -> Result<PathBuf, String> {
+    let repo_id = repo_state.repo_identifier()?;
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("resolve app data dir: {e}"))?;
+    Ok(base.join("reviews").join(repo_id))
+}
+
 // ── Commands ────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -70,19 +83,20 @@ pub fn create_session(
     base_commit: Option<String>,
     head_commit: String,
     reviewed_commits: Vec<String>,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo
-        .workdir()
-        .ok_or("Bare repository")?
-        .to_string_lossy()
-        .to_string();
+    let storage = review_storage_dir(&app, &repo_state)?;
 
-    let session = ReviewSession::new(workdir.clone(), branch, base_commit, head_commit, reviewed_commits);
-    session.save(std::path::Path::new(&workdir)).map_err(|e| e.to_string())?;
+    let session = ReviewSession::new(
+        storage.to_string_lossy().to_string(),
+        branch,
+        base_commit,
+        head_commit,
+        reviewed_commits,
+    );
+    session.save(&storage).map_err(|e| e.to_string())?;
 
     let result = session.clone();
     *session_state.0.lock().unwrap() = Some(session);
@@ -101,14 +115,12 @@ pub fn get_session(session_state: State<SessionState>) -> Result<Option<ReviewSe
 #[tauri::command]
 pub fn load_session(
     session_id: String,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-
-    let session = ReviewSession::load(workdir, &session_id).map_err(|e| e.to_string())?;
+    let storage = review_storage_dir(&app, &repo_state)?;
+    let session = ReviewSession::load(&storage, &session_id).map_err(|e| e.to_string())?;
     let result = session.clone();
     *session_state.0.lock().unwrap() = Some(session);
 
@@ -118,15 +130,17 @@ pub fn load_session(
 }
 
 #[tauri::command]
-pub fn list_active_sessions(repo_state: State<RepoState>) -> Result<Vec<String>, String> {
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-    ReviewSession::list_active(workdir).map_err(|e| e.to_string())
+pub fn list_active_sessions(
+    app: AppHandle,
+    repo_state: State<RepoState>,
+) -> Result<Vec<String>, String> {
+    let storage = review_storage_dir(&app, &repo_state)?;
+    ReviewSession::list_active(&storage).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn end_session(
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<(), String> {
@@ -135,10 +149,8 @@ pub fn end_session(
         let comment_count = session.comments.len() as u64;
         let edit_count = session.edits.len() as u64;
 
-        let repo_guard = repo_state.0.lock().unwrap();
-        let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-        let workdir = repo.workdir().ok_or("Bare repository")?;
-        ReviewSession::end(workdir, &session.session.id).map_err(|e| e.to_string())?;
+        let storage = review_storage_dir(&app, &repo_state)?;
+        ReviewSession::end(&storage, &session.session.id).map_err(|e| e.to_string())?;
 
         tracing::info!(
             event = "session_ended",
@@ -153,6 +165,7 @@ pub fn end_session(
 #[tauri::command]
 pub fn add_comment(
     args: AddCommentArgs,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
@@ -179,11 +192,8 @@ pub fn add_comment(
         },
     );
 
-    // Auto-save
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-    session.save(workdir).map_err(|e| e.to_string())?;
+    let storage = review_storage_dir(&app, &repo_state)?;
+    session.save(&storage).map_err(|e| e.to_string())?;
 
     tracing::info!(
         event = "comment_added",
@@ -198,6 +208,7 @@ pub fn add_comment(
 #[tauri::command]
 pub fn toggle_comment_resolved(
     comment_id: String,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
@@ -205,10 +216,8 @@ pub fn toggle_comment_resolved(
     let session = guard.as_mut().ok_or("No active session")?;
     session.toggle_resolved(&comment_id);
 
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-    session.save(workdir).map_err(|e| e.to_string())?;
+    let storage = review_storage_dir(&app, &repo_state)?;
+    session.save(&storage).map_err(|e| e.to_string())?;
 
     tracing::info!(event = "comment_resolved", session_id = %diag_session_id());
 
@@ -218,6 +227,7 @@ pub fn toggle_comment_resolved(
 #[tauri::command]
 pub fn delete_comment(
     comment_id: String,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
@@ -225,10 +235,8 @@ pub fn delete_comment(
     let session = guard.as_mut().ok_or("No active session")?;
     session.delete_comment(&comment_id);
 
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-    session.save(workdir).map_err(|e| e.to_string())?;
+    let storage = review_storage_dir(&app, &repo_state)?;
+    session.save(&storage).map_err(|e| e.to_string())?;
 
     tracing::info!(event = "comment_deleted", session_id = %diag_session_id());
 
@@ -238,6 +246,7 @@ pub fn delete_comment(
 #[tauri::command]
 pub fn add_edit(
     args: AddEditArgs,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
@@ -256,10 +265,8 @@ pub fn add_edit(
         args.associated_comment_id,
     );
 
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-    session.save(workdir).map_err(|e| e.to_string())?;
+    let storage = review_storage_dir(&app, &repo_state)?;
+    session.save(&storage).map_err(|e| e.to_string())?;
 
     tracing::info!(event = "edit_applied", session_id = %diag_session_id());
 
@@ -280,6 +287,7 @@ pub fn export_session(session_state: State<SessionState>) -> Result<String, Stri
 #[tauri::command]
 pub fn set_session_summary(
     summary: String,
+    app: AppHandle,
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
@@ -287,10 +295,8 @@ pub fn set_session_summary(
     let session = guard.as_mut().ok_or("No active session")?;
     session.summary = if summary.is_empty() { None } else { Some(summary) };
 
-    let repo_guard = repo_state.0.lock().unwrap();
-    let repo = repo_guard.as_ref().ok_or("No repository is open")?;
-    let workdir = repo.workdir().ok_or("Bare repository")?;
-    session.save(workdir).map_err(|e| e.to_string())?;
+    let storage = review_storage_dir(&app, &repo_state)?;
+    session.save(&storage).map_err(|e| e.to_string())?;
 
     Ok(session.clone())
 }
