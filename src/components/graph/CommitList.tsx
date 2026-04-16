@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useSelectionStore } from "../../stores/selectionStore";
 import { useReviewStore } from "../../stores/reviewStore";
+import { getCommitMessage } from "../../api/git";
 import type { CommitInfo } from "../../api/types";
 
 const LANE_WIDTH = 16;
@@ -52,6 +53,7 @@ export function CommitList() {
 	const includeWorkingTree = useSelectionStore((s) => s.includeWorkingTree);
 	const rawHandleCommitClick = useSelectionStore((s) => s.handleCommitClick);
 	const rawToggleWorkingTree = useSelectionStore((s) => s.toggleWorkingTree);
+	const reloadWorkingTree = useSelectionStore((s) => s.reloadWorkingTree);
 	const clearSelection = useSelectionStore((s) => s.clearSelection);
 	const isSessionActive = useReviewStore((s) => s.isSessionActive);
 	const clearSession = useReviewStore((s) => s.clearSession);
@@ -79,6 +81,7 @@ export function CommitList() {
 
 	const activeLanesPerRow = useMemo(() => computeActiveLanes(commits), [commits]);
 	const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+	const [commitDetail, setCommitDetail] = useState<{ commit: CommitInfo; message: string } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -163,6 +166,23 @@ export function CommitList() {
 									included
 								</span>
 							)}
+							{includeWorkingTree && (
+								<button
+									onClick={(e) => {
+										e.stopPropagation();
+										reloadWorkingTree();
+									}}
+									className="p-0.5 text-zinc-500 hover:text-amber-300 rounded hover:bg-zinc-700/50"
+									title="Refresh working tree"
+								>
+									<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+										<path d="M2.5 8a5.5 5.5 0 0 1 9.3-4" />
+										<path d="M13.5 8a5.5 5.5 0 0 1-9.3 4" />
+										<polyline points="12 2 12 5 9 5" fill="none" />
+										<polyline points="4 14 4 11 7 11" fill="none" />
+									</svg>
+								</button>
+							)}
 						</div>
 						<div className="text-xs text-zinc-500 mt-0.5">
 							Uncommitted changes
@@ -191,6 +211,22 @@ export function CommitList() {
 					style={{ left: contextMenu.x, top: contextMenu.y }}
 				>
 					<button
+						onClick={async () => {
+							const commit = contextMenu.commit;
+							setContextMenu(null);
+							try {
+								const message = await getCommitMessage(commit.oid);
+								setCommitDetail({ commit, message });
+							} catch (e) {
+								setCommitDetail({ commit, message: `Error: ${e}` });
+							}
+						}}
+						className="w-full text-left px-3 py-1.5 hover:bg-zinc-700 text-sm text-zinc-200"
+					>
+						Show commit message
+					</button>
+					<div className="border-t border-zinc-700 my-1" />
+					<button
 						onClick={() => copyToClipboard(contextMenu.commit.short_oid)}
 						className="w-full text-left px-3 py-1.5 hover:bg-zinc-700 text-sm text-zinc-200"
 					>
@@ -211,6 +247,41 @@ export function CommitList() {
 							Copy branch <span className="text-teal-400 ml-1">{b}</span>
 						</button>
 					))}
+				</div>
+			)}
+
+			{/* Commit message modal */}
+			{commitDetail && (
+				<div
+					className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+					onClick={() => setCommitDetail(null)}
+				>
+					<div
+						className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-2xl w-[560px] max-h-[70vh] flex flex-col select-text"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="flex items-center justify-between px-5 py-3 border-b border-zinc-700">
+							<div className="flex items-center gap-2 min-w-0">
+								<span className="font-mono text-xs text-zinc-400">{commitDetail.commit.short_oid}</span>
+								<span className="text-xs text-zinc-500">{commitDetail.commit.author_name}</span>
+								<span className="text-xs text-zinc-500">
+									{new Date(commitDetail.commit.timestamp * 1000).toLocaleString(undefined, {
+										year: "numeric", month: "short", day: "numeric",
+										hour: "2-digit", minute: "2-digit",
+									})}
+								</span>
+							</div>
+							<button
+								onClick={() => setCommitDetail(null)}
+								className="text-zinc-400 hover:text-white text-lg leading-none ml-3"
+							>
+								&times;
+							</button>
+						</div>
+						<div className="overflow-y-auto px-5 py-4">
+							<pre className="text-sm text-zinc-200 whitespace-pre-wrap font-sans">{commitDetail.message.trim()}</pre>
+						</div>
+					</div>
 				</div>
 			)}
 		</div>
