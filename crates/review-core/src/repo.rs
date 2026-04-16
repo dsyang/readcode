@@ -2,8 +2,9 @@ use git2::{BranchType, Oid, Repository, Sort};
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::dag::{assemble_commits, RawCommit};
 use crate::error::ReviewError;
-use crate::types::{CommitInfo, DagEdge, RepoInfo};
+use crate::types::{CommitInfo, RepoInfo};
 
 /// Wrapper around a local git repository.
 pub struct Repo {
@@ -76,21 +77,6 @@ impl Repo {
         // Build maps only for local branches (fast)
         let branch_map = self.build_branch_map()?;
 
-        // Collect raw commit data
-        struct RawCommit {
-            oid: Oid,
-            oid_str: String,
-            short_oid: String,
-            parent_oids: Vec<Oid>,
-            parent_strs: Vec<String>,
-            author_name: String,
-            author_email: String,
-            timestamp: i64,
-            summary: String,
-            branches: Vec<String>,
-            is_head: bool,
-        }
-
         let mut raw_commits = Vec::new();
         for oid_result in revwalk {
             if raw_commits.len() >= max_count {
@@ -99,16 +85,12 @@ impl Repo {
             let oid = oid_result?;
             let commit = self.inner.find_commit(oid)?;
             let oid_str = oid.to_string();
-            let short_oid = oid_str[..7.min(oid_str.len())].to_string();
-            let parent_oids: Vec<Oid> = commit.parent_ids().collect();
-            let parent_strs: Vec<String> = parent_oids.iter().map(|p| p.to_string()).collect();
+            let parent_strs: Vec<String> =
+                commit.parent_ids().map(|p| p.to_string()).collect();
 
             raw_commits.push(RawCommit {
-                oid,
-                oid_str,
-                short_oid,
-                parent_oids,
-                parent_strs,
+                oid: oid_str,
+                parent_oids: parent_strs,
                 author_name: commit.author().name().unwrap_or("Unknown").to_string(),
                 author_email: commit.author().email().unwrap_or("").to_string(),
                 timestamp: commit.time().seconds(),
@@ -118,94 +100,7 @@ impl Repo {
             });
         }
 
-        // DAG lane assignment
-        let mut lanes: Vec<Option<Oid>> = Vec::new();
-        let mut oid_to_lane: HashMap<Oid, usize> = HashMap::new();
-        let mut oid_to_color: HashMap<Oid, usize> = HashMap::new();
-        let mut next_color: usize = 0;
-
-        let mut commits = Vec::new();
-
-        for raw in &raw_commits {
-            let my_lane = if let Some(&lane) = oid_to_lane.get(&raw.oid) {
-                lane
-            } else {
-                let lane = lanes
-                    .iter()
-                    .position(|l| l.is_none())
-                    .unwrap_or_else(|| {
-                        lanes.push(None);
-                        lanes.len() - 1
-                    });
-                lanes[lane] = Some(raw.oid);
-                oid_to_color.insert(raw.oid, next_color);
-                next_color += 1;
-                lane
-            };
-
-            let my_color = *oid_to_color.get(&raw.oid).unwrap_or(&0);
-            let mut edges = Vec::new();
-            lanes[my_lane] = None;
-
-            for (i, parent_oid) in raw.parent_oids.iter().enumerate() {
-                let parent_lane = if let Some(&existing_lane) = oid_to_lane.get(parent_oid) {
-                    existing_lane
-                } else if i == 0 {
-                    lanes[my_lane] = Some(*parent_oid);
-                    oid_to_lane.insert(*parent_oid, my_lane);
-                    oid_to_color.insert(*parent_oid, my_color);
-                    my_lane
-                } else {
-                    let lane = lanes
-                        .iter()
-                        .position(|l| l.is_none())
-                        .unwrap_or_else(|| {
-                            lanes.push(None);
-                            lanes.len() - 1
-                        });
-                    lanes[lane] = Some(*parent_oid);
-                    oid_to_lane.insert(*parent_oid, lane);
-                    let color = next_color;
-                    next_color += 1;
-                    oid_to_color.insert(*parent_oid, color);
-                    lane
-                };
-
-                let edge_color = if i == 0 {
-                    my_color
-                } else {
-                    *oid_to_color.get(parent_oid).unwrap_or(&0)
-                };
-
-                edges.push(DagEdge {
-                    from_lane: my_lane,
-                    to_lane: parent_lane,
-                    color: edge_color,
-                });
-            }
-
-            while lanes.last() == Some(&None) {
-                lanes.pop();
-            }
-
-            commits.push(CommitInfo {
-                oid: raw.oid_str.clone(),
-                short_oid: raw.short_oid.clone(),
-                parent_oids: raw.parent_strs.clone(),
-                author_name: raw.author_name.clone(),
-                author_email: raw.author_email.clone(),
-                timestamp: raw.timestamp,
-                summary: raw.summary.clone(),
-                branches: raw.branches.clone(),
-                tags: Vec::new(),
-                is_head: raw.is_head,
-                lane: my_lane,
-                edges,
-                lane_count: lanes.len().max(1),
-            });
-        }
-
-        Ok(commits)
+        Ok(assemble_commits(&raw_commits))
     }
 
     /// Only local branches — fast even for repos with thousands of remote branches.
@@ -218,5 +113,14 @@ impl Repo {
             }
         }
         Ok(map)
+    }
+
+    /// Get the full commit message (subject + body) for a given OID.
+    pub fn get_commit_message(&self, oid_str: &str) -> Result<String, ReviewError> {
+        let oid = Oid::from_str(oid_str)
+            .map_err(|e| ReviewError::Other(format!("invalid oid: {e}")))?;
+        let commit = self.inner.find_commit(oid)
+            .map_err(|e| ReviewError::Other(format!("commit not found: {e}")))?;
+        Ok(commit.message().unwrap_or("").to_string())
     }
 }

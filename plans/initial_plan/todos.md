@@ -41,41 +41,55 @@
 - [x] Right-click context menu: copy short hash, full hash, branch name
 - [ ] Virtualized scrolling with `@tanstack/react-virtual` (not needed at 50 commits)
 
-## Remaining: Phase 4 — Remote Connections
+### Phase 4: Remote Connections
 
-The app currently only works with local git repos. Phase 4 adds the ability to
-connect to remote environments and review code there.
+One-shot `ssh -T host "git -C /path ..."` commands for each git operation.
+SSH ControlMaster multiplexing caches the connection so only the first
+command pays the handshake cost. Batched commands (`run_git_batch`) combine
+multiple git operations into a single SSH invocation to reduce round-trips.
 
-### Architecture
-Spawn the user's own connect command (ssh, aws ssm, gh cs ssh, etc.) as a
-persistent child process with piped stdin/stdout. Send git CLI commands through
-the shell and parse structured output. No SSH library, no remote binary, no
-port forwarding.
+#### Done
+- [x] `BackendState` enum in Rust dispatching local (git2-rs) vs remote (git CLI)
+- [x] `RemoteRepo` with one-shot SSH transport: `run_ssh`, `run_git`,
+      `run_git_batch` for batching multiple commands per SSH invocation
+- [x] SSH ControlMaster multiplexing (`ControlPersist=3600`,
+      `ServerAliveInterval=60`) for connection reuse
+- [x] Parallel file content fetches (`tokio::join!` for old + new revisions)
+- [x] `RemoteRepo`: list_commits, get_merged_diff (numstat + name-status
+      batched), get_file_at_revision, get_file_diff_content, get_commit_message
+- [x] Shared `review_core::dag::assemble_commits` used by both backends
+- [x] Connection profiles persistence (`connection_profiles.json` in app data)
+- [x] Tauri commands: `open_remote_repo`, `disconnect_remote`,
+      `list_profiles`, `save_profile`, `delete_profile`
+- [x] Frontend: `api/remote.ts`, `ConnectionDialog`, toolbar "Connect to
+      Remote..." entry, REMOTE badge in toolbar, connectionMode in
+      selectionStore
+- [x] Review sessions stored in app data dir (keyed by repo hash) —
+      works for both local and remote repos
+- [x] Unified recent repos list: remote repos appear alongside local
+      repos in the dropdown with SSH badge
+- [x] Right-click commit → "Show commit message" modal with full text
+- [x] Working tree refresh button (re-fetches diff without reloading commits)
+- [x] Reload button works for remote repos (refreshes commits only)
 
-### Tasks
-- [ ] `GitBackend` trait in Rust abstracting local (git2-rs) vs remote (git CLI)
-- [ ] `RemoteGitBackend`: spawn user's connect command as persistent subprocess
-- [ ] Command framing: send git commands with delimiters, parse structured output
-  - DAG: `git log --format="%H%x00%P%x00%an%x00%at%x00%s%x00%D" --topo-order`
-  - Diffs: `git diff <base>..<head>` or `git diff <base>` (working tree)
-  - File content: `git show <commit>:<path>`
-  - Status: `git status --porcelain=v2`
-- [ ] Connection profiles UI (name, connect command, repo path)
-- [ ] Connection profiles persistence (save/load)
-- [ ] Connection status indicator in toolbar
+#### Follow-ups
 - [ ] Auto-reconnect on disconnect
-- [ ] Apply edits remotely via `cat > file` in edit mode
-- [ ] Frontend: connection dialog, connection badge, swap local↔remote transparently
+- [ ] Apply edits remotely via SSH in edit mode (`write_file_to_workdir`
+      currently errors for remote)
+- [ ] Remote untracked files (local shows them via libgit2, `git diff` does not)
+- [ ] Paths with tabs/newlines in diff parsing (drop tab-split, use `-z`)
+- [ ] Connection health check + visual "disconnected" state
+- [ ] Binary-safe file content (currently `String::from_utf8_lossy`)
 
 ### Design Constraints
 - Zero deployment — nothing to install on the remote, just needs `git`
 - Works with any auth (SSH keys, AWS SSO, SSM, ProxyCommand, etc.)
-- One persistent connection — pay the connection cost once
+- ControlMaster reuses connections — pay the SSH handshake cost once
 - No custom protocol to maintain
 
 ## Known Limitations / Future Improvements
 - No virtualized scrolling for commit list (fine at 50 commits, would need it for more)
 - No inline comment widgets in the diff itself (comments only in the panel)
-- No `specta`/`tauri-specta` for auto-generated TS types (types are manually mirrored)
+- No `specta`/`tauri-spectra` for auto-generated TS types (types are manually mirrored)
 - Comment `context` fields (before/content/after) are not populated yet
 - Tag display removed for performance (could be re-added with lazy loading)

@@ -52,3 +52,10 @@ export interface FileDiffContent {
 	new_content: string;
 	status: FileStatus;
 }
+
+export interface ConnectionProfile {
+	id: string;
+	name: string;
+	ssh_host: string;
+	repo_path: string;
+}

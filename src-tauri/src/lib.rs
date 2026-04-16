@@ -1,4 +1,5 @@
 mod commands;
+mod remote;
 
 use commands::diagnostics::DiagnosticsState;
 use commands::git::RepoState;
@@ -85,15 +86,21 @@ pub fn run() {
             app.manage(DiagnosticsState { log_path });
             Ok(())
         })
-        .manage(RepoState(Mutex::new(None)))
+        .manage(RepoState::new())
         .manage(SessionState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             commands::git::open_repo,
             commands::git::get_commits,
+            commands::git::get_commit_message,
             commands::git::get_merged_diff,
             commands::git::get_file_diff_content,
             commands::git::get_file_at_revision,
             commands::git::write_file_to_workdir,
+            commands::remote::open_remote_repo,
+            commands::remote::disconnect_remote,
+            commands::remote::list_profiles,
+            commands::remote::save_profile,
+            commands::remote::delete_profile,
             commands::review::create_session,
             commands::review::get_session,
             commands::review::load_session,
