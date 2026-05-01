@@ -37,6 +37,9 @@ function computeActiveLanes(commits: CommitInfo[]): ActiveLanes[] {
 			active.set(edge.to_lane, edge.color);
 		}
 	}
+	// Append final state so each row N can read result[N+1] as its "after" state
+	// for drawing continuation lines into wrapped rows.
+	result.push(new Map(active));
 	return result;
 }
 
@@ -196,6 +199,7 @@ export function CommitList() {
 						commit={commit}
 						graphWidth={graphWidth}
 						activeLanes={activeLanesPerRow[row]}
+						nextActiveLanes={activeLanesPerRow[row + 1]}
 						isSelected={selectedOids.has(commit.oid)}
 						onClick={handleCommitClick}
 						onContextMenu={handleContextMenu}
@@ -292,12 +296,13 @@ interface CommitRowProps {
 	commit: CommitInfo;
 	graphWidth: number;
 	activeLanes: ActiveLanes;
+	nextActiveLanes: ActiveLanes;
 	isSelected: boolean;
 	onClick: (oid: string, metaKey: boolean, shiftKey: boolean) => void;
 	onContextMenu: (e: React.MouseEvent, commit: CommitInfo) => void;
 }
 
-function CommitRow({ commit, graphWidth, activeLanes, isSelected, onClick, onContextMenu }: CommitRowProps) {
+function CommitRow({ commit, graphWidth, activeLanes, nextActiveLanes, isSelected, onClick, onContextMenu }: CommitRowProps) {
 	const date = new Date(commit.timestamp * 1000);
 	const timeStr = formatRelativeDate(date);
 	const authorDisplay = formatAuthor(commit.author_name, commit.author_email);
@@ -309,10 +314,10 @@ function CommitRow({ commit, graphWidth, activeLanes, isSelected, onClick, onCon
 			className={`flex items-stretch cursor-pointer border-b border-zinc-800 ${
 				isSelected ? "bg-blue-900/40" : "hover:bg-zinc-800/50"
 			}`}
-			style={{ height: ROW_HEIGHT }}
+			style={{ minHeight: ROW_HEIGHT }}
 		>
-			<div className="flex-shrink-0" style={{ width: graphWidth }}>
-				<svg width={graphWidth} height={ROW_HEIGHT}>
+			<div className="flex-shrink-0 flex flex-col" style={{ width: graphWidth }}>
+				<svg width={graphWidth} height={ROW_HEIGHT} className="flex-shrink-0">
 					{Array.from(activeLanes.entries()).map(([lane, color]) => {
 						if (lane === commit.lane) return null;
 						const x = lane * LANE_WIDTH + LANE_WIDTH / 2 + 4;
@@ -351,10 +356,29 @@ function CommitRow({ commit, graphWidth, activeLanes, isSelected, onClick, onCon
 						strokeWidth={commit.is_head ? 2 : 0}
 					/>
 				</svg>
+				{/* Continuation lines for any extra row height beyond ROW_HEIGHT
+				    (e.g. when branch labels wrap). Without this, the timeline
+				    breaks visually between a wrapped row and the next. */}
+				<div className="flex-1 relative">
+					{Array.from(nextActiveLanes.entries()).map(([lane, color]) => (
+						<div
+							key={`cont-${lane}`}
+							className="absolute top-0 bottom-0"
+							style={{
+								left: lane * LANE_WIDTH + LANE_WIDTH / 2 + 4 - 1,
+								width: 2,
+								background: laneColor(color),
+							}}
+						/>
+					))}
+				</div>
 			</div>
 			<div className="flex-1 min-w-0 flex flex-col justify-center py-1 pr-3">
-				<div className="flex items-center gap-1.5 min-w-0">
-					<span className={`truncate text-sm ${isSelected ? "text-white" : "text-zinc-200"}`}>
+				<div className="flex flex-wrap items-center gap-1.5 min-w-0">
+					<span
+						className={`truncate text-sm flex-auto ${isSelected ? "text-white" : "text-zinc-200"}`}
+						style={{ minWidth: "5rem" }}
+					>
 						{commit.summary}
 					</span>
 					{commit.branches.filter((b) => !b.startsWith("origin/")).map((b) => (
