@@ -85,6 +85,12 @@ pub fn assemble_commits(raw: &[RawCommit]) -> Vec<CommitInfo> {
             });
         }
 
+        // Capture lane_count BEFORE popping trailing Nones, so the row's
+        // visual width covers this commit's own lane and any edge endpoints
+        // even when the lane is freed (e.g., a sibling branch tip whose
+        // parent is already on a lower active lane).
+        let lane_count = lanes.len().max(my_lane + 1);
+
         while lanes.last() == Some(&None) {
             lanes.pop();
         }
@@ -103,7 +109,7 @@ pub fn assemble_commits(raw: &[RawCommit]) -> Vec<CommitInfo> {
             is_head: r.is_head,
             lane: my_lane,
             edges,
-            lane_count: lanes.len().max(1),
+            lane_count,
         });
     }
 
