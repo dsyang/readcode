@@ -24,6 +24,10 @@ export async function listActiveSessions(): Promise<string[]> {
 	return invoke<string[]>("list_active_sessions");
 }
 
+export async function discardSession(sessionId: string): Promise<void> {
+	return invoke<void>("discard_session", { sessionId });
+}
+
 export async function endSession(): Promise<void> {
 	return invoke<void>("end_session");
 }

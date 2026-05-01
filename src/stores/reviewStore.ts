@@ -22,6 +22,7 @@ interface ReviewState {
 		reviewedCommits: string[],
 	) => Promise<void>;
 	resumeSession: (sessionId: string) => Promise<void>;
+	discardExistingSession: (sessionId: string) => Promise<void>;
 	endSession: () => Promise<void>;
 	clearSession: () => void;
 	checkExistingSessions: () => Promise<void>;
@@ -118,6 +119,15 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
 		}
 		sessionStartTime = null;
 		set({ session: null, isSessionActive: false, editMode: false, pendingComment: null, existingSessionIds: [] });
+	},
+
+	discardExistingSession: async (sessionId) => {
+		try {
+			await api.discardSession(sessionId);
+		} catch (e) {
+			console.error("Failed to discard session:", e);
+		}
+		set({ existingSessionIds: get().existingSessionIds.filter((id) => id !== sessionId) });
 	},
 
 	checkExistingSessions: async () => {

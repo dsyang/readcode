@@ -141,6 +141,20 @@ pub fn list_active_sessions(
 }
 
 #[tauri::command]
+pub fn discard_session(
+    session_id: String,
+    app: AppHandle,
+    repo_state: State<RepoState>,
+) -> Result<(), String> {
+    let storage = review_storage_dir(&app, &repo_state)?;
+    ReviewSession::discard(&storage, &session_id).map_err(|e| e.to_string())?;
+
+    tracing::info!(event = "session_discarded", session_id = %diag_session_id());
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn end_session(
     app: AppHandle,
     repo_state: State<RepoState>,

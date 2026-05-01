@@ -195,6 +195,15 @@ impl ReviewSession {
         Ok(())
     }
 
+    /// Permanently delete a session file without loading it.
+    pub fn discard(storage_dir: &Path, session_id: &str) -> Result<(), ReviewError> {
+        let path = session_path(storage_dir, session_id);
+        if path.exists() {
+            fs::remove_file(&path).map_err(|e| ReviewError::Other(e.to_string()))?;
+        }
+        Ok(())
+    }
+
     /// Add a comment and auto-save.
     pub fn add_comment(
         &mut self,

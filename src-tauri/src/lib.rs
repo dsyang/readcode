@@ -105,6 +105,7 @@ pub fn run() {
             commands::review::get_session,
             commands::review::load_session,
             commands::review::list_active_sessions,
+            commands::review::discard_session,
             commands::review::end_session,
             commands::review::add_comment,
             commands::review::toggle_comment_resolved,

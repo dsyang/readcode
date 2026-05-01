@@ -13,6 +13,7 @@ export function CommentPanel() {
 	const exportSession = useReviewStore((s) => s.exportSession);
 	const pendingComment = useReviewStore((s) => s.pendingComment);
 	const existingSessionIds = useReviewStore((s) => s.existingSessionIds);
+	const discardExistingSession = useReviewStore((s) => s.discardExistingSession);
 
 	const currentBranch = useSelectionStore((s) => s.currentBranch);
 	const selectedCommitOids = useSelectionStore((s) => s.selectedCommitOids);
@@ -58,14 +59,26 @@ export function CommentPanel() {
 							{existingSessionIds.length} unfinished review{existingSessionIds.length > 1 ? "s" : ""} found:
 						</p>
 						{existingSessionIds.map((id) => (
-							<button
+							<div
 								key={id}
-								onClick={() => resumeSession(id)}
-								className="w-full text-left px-2 py-1.5 hover:bg-zinc-700 rounded text-xs"
+								className="group flex items-stretch hover:bg-zinc-700 rounded"
 							>
-								<span className="text-blue-400">Resume</span>
-								<span className="text-zinc-500 font-mono ml-2">{id.substring(0, 8)}...</span>
-							</button>
+								<button
+									onClick={() => resumeSession(id)}
+									className="flex-1 text-left px-2 py-1.5 text-xs"
+								>
+									<span className="text-blue-400">Resume</span>
+									<span className="text-zinc-500 font-mono ml-2">{id.substring(0, 8)}...</span>
+								</button>
+								<button
+									onClick={() => discardExistingSession(id)}
+									className="opacity-0 group-hover:opacity-100 px-2 text-zinc-500 hover:text-red-400 text-xs"
+									title="Discard session (delete file)"
+									aria-label={`Discard session ${id.substring(0, 8)}`}
+								>
+									&times;
+								</button>
+							</div>
 						))}
 					</div>
 				)}
