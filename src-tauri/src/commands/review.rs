@@ -88,8 +88,10 @@ pub fn create_session(
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
     let storage = review_storage_dir(&app, &repo_state)?;
+    let repo_path = repo_state.repo_path()?;
 
     let session = ReviewSession::new(
+        repo_path,
         storage.to_string_lossy().to_string(),
         branch,
         base_commit,

@@ -32,18 +32,23 @@ impl RepoState {
     /// A stable identifier for the current repo, usable as a directory name.
     /// Works for both local and remote repos.
     pub fn repo_identifier(&self) -> Result<String, String> {
+        Ok(hash_string(&self.repo_path()?))
+    }
+
+    /// The user-facing path of the current repo: a local workdir for local
+    /// repos or `host:/path` for remote ones.
+    pub fn repo_path(&self) -> Result<String, String> {
         let guard = self.0.lock().unwrap();
-        let raw = match &*guard {
-            BackendState::None => return Err("No repository is open".to_string()),
+        match &*guard {
+            BackendState::None => Err("No repository is open".to_string()),
             BackendState::Local(m) => {
                 let repo = m.lock().unwrap();
                 repo.workdir()
                     .map(|p| p.to_string_lossy().to_string())
-                    .ok_or_else(|| "Bare repository".to_string())?
+                    .ok_or_else(|| "Bare repository".to_string())
             }
-            BackendState::Remote(r) => r.identifier(),
-        };
-        Ok(hash_string(&raw))
+            BackendState::Remote(r) => Ok(r.identifier()),
+        }
     }
 }
 

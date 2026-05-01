@@ -127,10 +127,10 @@ export function CommentPanel() {
 				{session && (
 					<div
 						className="px-3 pb-1.5 text-[10px] text-zinc-600 font-mono truncate cursor-pointer hover:text-zinc-400"
-						title={`${session.session.repo}.ai-review/sessions/${session.session.id}.json`}
-						onClick={() => navigator.clipboard.writeText(`${session.session.repo}.ai-review/sessions/${session.session.id}.json`)}
+						title={`${session.session.review_location}/sessions/${session.session.id}.json`}
+						onClick={() => navigator.clipboard.writeText(`${session.session.review_location}/sessions/${session.session.id}.json`)}
 					>
-						.ai-review/sessions/{session.session.id.substring(0, 8)}...json
+						sessions/{session.session.id.substring(0, 8)}...json
 					</div>
 				)}
 			</div>

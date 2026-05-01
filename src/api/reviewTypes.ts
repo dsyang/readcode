@@ -9,6 +9,7 @@ export interface ReviewSession {
 export interface SessionMeta {
 	id: string;
 	repo: string;
+	review_location: string;
 	branch: string | null;
 	base_commit: string | null;
 	head_commit: string;

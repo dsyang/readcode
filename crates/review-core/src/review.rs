@@ -21,6 +21,7 @@ pub struct ReviewSession {
 pub struct SessionMeta {
     pub id: String,
     pub repo: String,
+    pub review_location: String,
     pub branch: Option<String>,
     pub base_commit: Option<String>,
     pub head_commit: String,
@@ -118,6 +119,7 @@ impl ReviewSession {
     /// Create a new empty session.
     pub fn new(
         repo: String,
+        review_location: String,
         branch: Option<String>,
         base_commit: Option<String>,
         head_commit: String,
@@ -129,6 +131,7 @@ impl ReviewSession {
             session: SessionMeta {
                 id: Uuid::new_v4().to_string(),
                 repo,
+                review_location,
                 branch,
                 base_commit,
                 head_commit,
