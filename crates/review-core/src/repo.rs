@@ -52,22 +52,13 @@ impl Repo {
     }
 
     /// List commits with DAG lane layout, in topological order (newest first).
-    /// Only walks HEAD + local branches for performance on large repos.
+    /// Walks HEAD's ancestors only, so commits[0] is always the checked-out tip.
     pub fn list_commits(&self, max_count: usize) -> Result<Vec<CommitInfo>, ReviewError> {
         let mut revwalk = self.inner.revwalk()?;
         revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
 
-        // Push HEAD first
         if let Ok(head) = self.inner.head() {
             if let Some(oid) = head.target() {
-                let _ = revwalk.push(oid);
-            }
-        }
-
-        // Push local branches only (skip remote branches for speed)
-        for branch in self.inner.branches(Some(BranchType::Local))? {
-            let (branch, _) = branch?;
-            if let Some(oid) = branch.get().target() {
                 let _ = revwalk.push(oid);
             }
         }
