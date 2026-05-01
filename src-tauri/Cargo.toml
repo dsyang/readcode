@@ -1,6 +1,6 @@
 [package]
 name = "readcode"
-version = "0.2.0"
+version = "0.3.20260415"
 description = "Code review tool for agent-assisted development"
 authors = ["Dan Yang"]
 edition = "2021"
