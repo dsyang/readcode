@@ -53,6 +53,7 @@ interface SelectionState {
 	reloadRepository: () => Promise<void>;
 	reloadWorkingTree: () => void;
 	closeRepository: () => void;
+	removeRecentRepo: (entry: RecentRepo) => void;
 	handleCommitClick: (oid: string, metaKey: boolean, shiftKey: boolean) => void;
 	toggleWorkingTree: () => void;
 	handleFileClick: (path: string, metaKey: boolean, shiftKey: boolean) => void;
@@ -345,6 +346,13 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		if (wasRemote) {
 			disconnectRemote().catch(() => {});
 		}
+	},
+
+	removeRecentRepo: (entry: RecentRepo) => {
+		const key = recentRepoKey(entry);
+		const newRecent = get().recentRepos.filter((r) => recentRepoKey(r) !== key);
+		saveRecentRepos(newRecent);
+		set({ recentRepos: newRecent });
 	},
 
 	selectAllFiles: () => {

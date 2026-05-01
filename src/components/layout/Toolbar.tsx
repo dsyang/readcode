@@ -19,6 +19,7 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 	const closeRepository = useSelectionStore((s) => s.closeRepository);
 	const reloadRepository = useSelectionStore((s) => s.reloadRepository);
 	const recentRepos = useSelectionStore((s) => s.recentRepos);
+	const removeRecentRepo = useSelectionStore((s) => s.removeRecentRepo);
 	const clearSession = useReviewStore((s) => s.clearSession);
 	const checkExistingSessions = useReviewStore((s) => s.checkExistingSessions);
 	const connectionMode = useSelectionStore((s) => s.connectionMode);
@@ -203,26 +204,41 @@ export function Toolbar({ sidebarVisible, onToggleSidebar, reviewPanelVisible, o
 										? entry.path === repoPath
 										: connectionMode === "remote" && subtitle.endsWith(repoPath ?? "");
 									return (
-										<button
+										<div
 											key={key}
-											onClick={() => handleOpenRecent(entry)}
-											className={`w-full text-left px-3 py-1.5 hover:bg-zinc-700 text-sm ${
+											className={`group relative flex items-stretch hover:bg-zinc-700 ${
 												isCurrent ? "bg-zinc-700/50" : ""
 											}`}
 										>
-											<div className="flex items-center gap-2">
-												{entry.type === "remote" && (
-													<span className="text-[10px] px-1 py-0.5 bg-emerald-700/70 text-emerald-100 rounded">
-														SSH
-													</span>
-												)}
-												<span className="text-zinc-200">{name}</span>
-												{isCurrent && (
-													<span className="text-[10px] text-zinc-500">current</span>
-												)}
-											</div>
-											<div className="text-xs text-zinc-500 truncate">{subtitle}</div>
-										</button>
+											<button
+												onClick={() => handleOpenRecent(entry)}
+												className="flex-1 min-w-0 text-left px-3 py-1.5 text-sm"
+											>
+												<div className="flex items-center gap-2">
+													{entry.type === "remote" && (
+														<span className="text-[10px] px-1 py-0.5 bg-emerald-700/70 text-emerald-100 rounded">
+															SSH
+														</span>
+													)}
+													<span className="text-zinc-200">{name}</span>
+													{isCurrent && (
+														<span className="text-[10px] text-zinc-500">current</span>
+													)}
+												</div>
+												<div className="text-xs text-zinc-500 truncate">{subtitle}</div>
+											</button>
+											<button
+												onClick={(e) => {
+													e.stopPropagation();
+													removeRecentRepo(entry);
+												}}
+												className="opacity-0 group-hover:opacity-100 px-2 text-zinc-500 hover:text-red-400"
+												title="Remove from recent"
+												aria-label={`Remove ${name} from recent`}
+											>
+												&times;
+											</button>
+										</div>
 									);
 								})}
 							</>
