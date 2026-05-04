@@ -11,7 +11,13 @@ export function useLogPath() {
 
 	async function showLogs() {
 		if (logPath) {
-			await openPath(logPath);
+			try {
+				await openPath(logPath);
+			} catch (err) {
+				alert(`Failed to open log folder:\n${logPath}\n\n${err}`);
+			}
+		} else {
+			alert("Log path not yet available.");
 		}
 	}
 
