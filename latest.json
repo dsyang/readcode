@@ -1,14 +1,14 @@
 {
-  "version": "0.4.1",
+  "version": "0.4.2",
   "notes": "See the full release on GitHub.",
-  "pub_date": "2026-05-04T06:18:12Z",
+  "pub_date": "2026-05-04T06:42:49Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.1/ReadCode.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVENtcUYvaER3N09jRVJtWlNmMXNsV2UvWGNZZ3R1NHhZZWNBS2habUpCdllwdXN6RjA5clV3QkRvSElWZzQrSUpRc0JrQVNuaVlQMGdqMktRdzN1WUFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODc1Mzg2CWZpbGU6UmVhZENvZGUuYXBwLnRhci5negpyOGE5a21wY3JNUE56cE1RZFI4OEE4Y3M5TnRBWnhuQ3BNR1NQZFhnZExqZWJkcTB1NlNxZGVoeHJDK2Nxb1NMZ0FXQUZXUlRBZzIyeEFrQm1nbnFDQT09Cg=="
+      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.2/ReadCode.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVExWVVJWMEliWXNlcEFZNEFKcWN3SldncVU5cHVXQW9WZnlYdEcxWnhUbUFIeVlJaFZxdTNQQTFzUGh2V3dhNjlESCsyazlLcG5EYmR3SUl2dGhNNVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODc2Nzc2CWZpbGU6UmVhZENvZGUuYXBwLnRhci5negoyTDF5V0Q2ZS9BZ0I5ZUJpbDlkTFA1aXZiZWFPWlh1YUZBbm1HWEJETkNWVHhLY3hycnphb2R4UEl0ak5hTFduQzFMcWt6bUFtNW9lR1dGZk90aUlEdz09Cg=="
     },
     "windows-x86_64": {
-      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.1/ReadCode_0.4.0_x64_en-US.msi",
+      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.2/ReadCode_0.4.0_x64_en-US.msi",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVEtKUzJrMit5dVdwaDBRcUt6K2Q5a2c3ZnBzVEl3R25uVEM3ZXJYTHhXRC9ya0lWSTN3c2JpaU5BekRGLy8yZnVSOUM4ZGIzRDFzRnZMaDZpZS8wc0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODcxMzM0CWZpbGU6UmVhZENvZGVfMC40LjBfeDY0X2VuLVVTLm1zaQpnaTVDYUpJa1VpYTk5bkxmbzloaVhwazQwQ2ZaMndXTGE3djhxSjZZanRQMlY5Y2JaTUROSEgwNHBzZ3RkamdSTVJZMTFuY24xNjM1a0RkSjkzVHFCZz09Cg=="
     }
   }
