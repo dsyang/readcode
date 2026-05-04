@@ -64,8 +64,8 @@ if [[ "$PLATFORM" == "Darwin" ]]; then
 else
   # Windows via Git Bash — builds x86_64 MSI
   npm run tauri build
-  INSTALLER=$(find "target/release/bundle/msi" -name "*.msi" | head -1)
-  UPDATER=$(find "target/release/bundle/msi" -name "*.msi.zip" | head -1)
+  INSTALLER=$(find "target/release/bundle/msi" -name "*.msi" ! -name "*.sig" | head -1)
+  UPDATER="$INSTALLER"
 fi
 
 if [ -z "$INSTALLER" ]; then
