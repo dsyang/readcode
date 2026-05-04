@@ -138,4 +138,28 @@ export const diag = {
 	jsError(errorClass: string, componentStackDepth: number): void {
 		logEvent("js_error", { error_class: errorClass, component_stack_depth: componentStackDepth });
 	},
+
+	updaterCheck(available: boolean, currentVersion: string | null, latestVersion: string | null): void {
+		logEvent("updater_check", {
+			available,
+			current_version: currentVersion,
+			latest_version: latestVersion,
+		});
+	},
+
+	updaterError(errorKind: string): void {
+		logEvent("updater_error", { error_kind: errorKind });
+	},
 };
+
+/** Maps updater plugin errors to safe, non-private kind labels. */
+export function classifyUpdaterError(e: unknown): string {
+	if (e instanceof Error || typeof e === "string") {
+		const msg = (e instanceof Error ? e.message : e).toLowerCase();
+		if (msg.includes("signature")) return "signature_failed";
+		if (msg.includes("no available") || msg.includes("target")) return "no_platform";
+		if (msg.includes("parse") || msg.includes("json")) return "parse_error";
+		if (msg.includes("network") || msg.includes("fetch") || msg.includes("request") || msg.includes("connect") || msg.includes("dns")) return "network";
+	}
+	return "unknown";
+}

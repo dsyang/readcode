@@ -71,6 +71,8 @@ fn allowed_fields(event: &str) -> &'static [&'static str] {
         "ipc_error" => &["command_name", "error_kind"],
         "js_error" => &["error_class", "component_stack_depth"],
         "app_context" => &["screen_width", "screen_height", "locale"],
+        "updater_check" => &["available", "current_version", "latest_version"],
+        "updater_error" => &["error_kind"],
         _ => &[],
     }
 }
