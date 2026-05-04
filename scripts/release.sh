@@ -79,12 +79,15 @@ echo "==> Built updater:   $UPDATER"
 echo "==> Signature:       ${UPDATER}.sig"
 
 echo "==> Creating draft release $TAG on $RELEASES_REPO (if not exists)..."
-gh release create "$TAG" \
-  --repo "$RELEASES_REPO" \
-  --title "ReadCode $TAG" \
-  --draft \
-  --notes "" \
-  2>/dev/null || echo "    (release already exists, continuing)"
+if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
+  echo "    (release already exists, continuing)"
+else
+  gh release create "$TAG" \
+    --repo "$RELEASES_REPO" \
+    --title "ReadCode $TAG" \
+    --draft \
+    --notes ""
+fi
 
 echo "==> Uploading artifacts..."
 gh release upload "$TAG" \
