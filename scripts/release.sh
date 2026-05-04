@@ -58,12 +58,14 @@ awk -v ver="$VERSION" '/^version = "/ && !done { sub(/^version = ".*"/, "version
 
 echo "==> Building release for $PLATFORM..."
 if [[ "$PLATFORM" == "Darwin" ]]; then
+  rm -rf target/aarch64-apple-darwin/release/bundle/dmg target/aarch64-apple-darwin/release/bundle/macos
   npm run tauri build -- --target aarch64-apple-darwin
   INSTALLER=$(find "target/aarch64-apple-darwin/release/bundle/dmg" -name "*.dmg" | head -1)
   UPDATER=$(find "target/aarch64-apple-darwin/release/bundle/macos" -name "*.tar.gz" | head -1)
   ARTIFACTS=("$INSTALLER" "$UPDATER" "${UPDATER}.sig")
 else
   # Windows via Git Bash — builds x86_64 MSI
+  rm -rf target/release/bundle/msi
   npm run tauri build
   INSTALLER=$(find "target/release/bundle/msi" -name "*.msi" ! -name "*.sig" | head -1)
   UPDATER="$INSTALLER"
