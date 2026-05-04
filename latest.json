@@ -1,15 +1,15 @@
 {
-  "version": "0.4.2",
+  "version": "0.4.3",
   "notes": "See the full release on GitHub.",
-  "pub_date": "2026-05-04T06:42:49Z",
+  "pub_date": "2026-05-04T06:59:44Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.2/ReadCode.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVExWVVJWMEliWXNlcEFZNEFKcWN3SldncVU5cHVXQW9WZnlYdEcxWnhUbUFIeVlJaFZxdTNQQTFzUGh2V3dhNjlESCsyazlLcG5EYmR3SUl2dGhNNVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODc2Nzc2CWZpbGU6UmVhZENvZGUuYXBwLnRhci5negoyTDF5V0Q2ZS9BZ0I5ZUJpbDlkTFA1aXZiZWFPWlh1YUZBbm1HWEJETkNWVHhLY3hycnphb2R4UEl0ak5hTFduQzFMcWt6bUFtNW9lR1dGZk90aUlEdz09Cg=="
+      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.3/ReadCode.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVEFQVFdJTlBWUWNxZTJOU3VSaEY5OVUzZ2grU0wzT3JYZ1VGdG1Ca1hTZ3pXSW5LZHd1ZVkzQ3NrVmtZRGdLS0tRNlpyMDZMdUdhVlRqeWk3WklIREF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODc3OTA4CWZpbGU6UmVhZENvZGUuYXBwLnRhci5negpvdmUwZkg5NEZFL1gvVURBbFlXcE1NRTRVUlZWcS9LeXRQa3NiN2VOVU9MMndYOTdKQkdibjVvaTM1S2FsQ2luY1RjTTl1ck1PY2JOazM4bjNPQ29Edz09Cg=="
     },
     "windows-x86_64": {
-      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.2/ReadCode_0.4.0_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVEtKUzJrMit5dVdwaDBRcUt6K2Q5a2c3ZnBzVEl3R25uVEM3ZXJYTHhXRC9ya0lWSTN3c2JpaU5BekRGLy8yZnVSOUM4ZGIzRDFzRnZMaDZpZS8wc0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODcxMzM0CWZpbGU6UmVhZENvZGVfMC40LjBfeDY0X2VuLVVTLm1zaQpnaTVDYUpJa1VpYTk5bkxmbzloaVhwazQwQ2ZaMndXTGE3djhxSjZZanRQMlY5Y2JaTUROSEgwNHBzZ3RkamdSTVJZMTFuY24xNjM1a0RkSjkzVHFCZz09Cg=="
+      "url": "https://github.com/dsyang/readcode/releases/download/v0.4.3/ReadCode_0.4.3_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVGV4UTA5UUtrVEM1M3dHbWoxWFc4Qy9QeGN5dU1yY2R0TDZPaGZ2Vkx5a01ENUhkMXpQMjdCR2tZZmMzb2xoTjI2SlZKaGsrZDBKV2llSzhrbS96VG9NbjB3TlM2QXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3ODc3NjcyCWZpbGU6UmVhZENvZGVfMC40LjNfeDY0X2VuLVVTLm1zaQpHeUpyK3kyZVJlZHpsTWMrREZqWGR5aisrMmN4ODJTNS9KOGJsWGJzTzNoSGN1Q1NQWHE3bzRUdU5nbGtSUUxHb1MyK1VYVHlDU0JZWlB0UHNhb05EUT09Cg=="
     }
   }
 }
