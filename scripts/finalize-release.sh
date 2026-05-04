@@ -28,24 +28,37 @@ PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 echo "==> Fetching artifact signatures from $TAG..."
 
-# Download .sig files — contents go inline into latest.json (Tauri requirement)
-# Tauri signs the updater bundle (.tar.gz on Mac, .msi.zip on Windows), not the installer
+# Download .sig files — contents go inline into latest.json (Tauri requirement).
+# Tauri 2 signs the updater bundle, which is .app.tar.gz on Mac and the .msi
+# itself on Windows (no .msi.zip wrapper as in Tauri 1).
 MAC_SIG=$(gh release download "$TAG" --repo "$RELEASES_REPO" -p "*.tar.gz.sig" --output - 2>/dev/null || true)
-WIN_SIG=$(gh release download "$TAG" --repo "$RELEASES_REPO" -p "*.msi.zip.sig" --output - 2>/dev/null || true)
+WIN_SIG=$(gh release download "$TAG" --repo "$RELEASES_REPO" -p "*.msi.sig" --output - 2>/dev/null || true)
 
 if [ -z "$MAC_SIG" ]; then
   echo "Warning: No .tar.gz.sig found — darwin-aarch64 will be missing from latest.json"
 fi
 if [ -z "$WIN_SIG" ]; then
-  echo "Warning: No .msi.zip.sig found — windows-x86_64 will be missing from latest.json"
+  echo "Warning: No .msi.sig found — windows-x86_64 will be missing from latest.json"
 fi
 
-# Derive asset URLs from the release assets
-# The updater downloads the .tar.gz (Mac) or .msi.zip (Windows), not the installer
-MAC_ASSET=$(gh release view "$TAG" --repo "$RELEASES_REPO" --json assets \
-  --jq '.assets[] | select(.name | endswith(".tar.gz")) | .url' 2>/dev/null || true)
-WIN_ASSET=$(gh release view "$TAG" --repo "$RELEASES_REPO" --json assets \
-  --jq '.assets[] | select(.name | endswith(".msi.zip")) | .url' 2>/dev/null || true)
+# Derive asset URLs from the asset filenames + tag.
+# We can't read .url from the API here: while the release is still a draft,
+# GitHub serves assets under /releases/download/untagged-<hash>/..., and those
+# URLs become 404 the moment we publish with --draft=false below. Instead, look
+# up just the asset *names* and construct the stable post-publish URL ourselves.
+MAC_NAME=$(gh release view "$TAG" --repo "$RELEASES_REPO" --json assets \
+  --jq '.assets[] | select(.name | endswith(".tar.gz")) | .name' 2>/dev/null || true)
+WIN_NAME=$(gh release view "$TAG" --repo "$RELEASES_REPO" --json assets \
+  --jq '.assets[] | select(.name | endswith(".msi")) | .name' 2>/dev/null || true)
+
+MAC_ASSET=""
+WIN_ASSET=""
+if [ -n "$MAC_NAME" ]; then
+  MAC_ASSET="https://github.com/$RELEASES_REPO/releases/download/$TAG/$MAC_NAME"
+fi
+if [ -n "$WIN_NAME" ]; then
+  WIN_ASSET="https://github.com/$RELEASES_REPO/releases/download/$TAG/$WIN_NAME"
+fi
 
 echo "==> Building latest.json..."
 LATEST_JSON=$(cat <<EOF
@@ -72,6 +85,13 @@ echo "==> latest.json preview:"
 cat /tmp/readcode-latest.json
 echo ""
 
+# Publish the release BEFORE pushing latest.json, so that the asset download
+# URLs in latest.json are valid the moment any client fetches the manifest.
+# (Pushing the manifest first creates a race window where the manifest
+# advertises a version whose download URL still 404s.)
+echo "==> Publishing release $TAG on $RELEASES_REPO..."
+gh release edit "$TAG" --repo "$RELEASES_REPO" --draft=false
+
 echo "==> Pushing latest.json to gh-pages branch of $RELEASES_REPO..."
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -95,9 +115,6 @@ git -C "$WORK_DIR" push origin gh-pages
 
 echo "==> latest.json live at: https://dsyang.github.io/readcode/latest.json"
 echo "    (GitHub Pages may take ~1 minute to propagate)"
-
-echo "==> Publishing release $TAG on $RELEASES_REPO..."
-gh release edit "$TAG" --repo "$RELEASES_REPO" --draft=false
 
 echo ""
 echo "Release $TAG is published!"

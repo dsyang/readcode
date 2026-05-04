@@ -61,21 +61,22 @@ if [[ "$PLATFORM" == "Darwin" ]]; then
   npm run tauri build -- --target aarch64-apple-darwin
   INSTALLER=$(find "target/aarch64-apple-darwin/release/bundle/dmg" -name "*.dmg" | head -1)
   UPDATER=$(find "target/aarch64-apple-darwin/release/bundle/macos" -name "*.tar.gz" | head -1)
+  ARTIFACTS=("$INSTALLER" "$UPDATER" "${UPDATER}.sig")
 else
   # Windows via Git Bash — builds x86_64 MSI
   npm run tauri build
   INSTALLER=$(find "target/release/bundle/msi" -name "*.msi" ! -name "*.sig" | head -1)
   UPDATER="$INSTALLER"
+  ARTIFACTS=("$INSTALLER" "${INSTALLER}.sig")
 fi
 
 if [ -z "$INSTALLER" ]; then
   echo "Error: No installer artifact found"
   exit 1
 fi
-SIGFILE="${UPDATER}.sig"
 echo "==> Built installer: $INSTALLER"
 echo "==> Built updater:   $UPDATER"
-echo "==> Signature:       $SIGFILE"
+echo "==> Signature:       ${UPDATER}.sig"
 
 echo "==> Creating draft release $TAG on $RELEASES_REPO (if not exists)..."
 gh release create "$TAG" \
@@ -88,7 +89,7 @@ gh release create "$TAG" \
 echo "==> Uploading artifacts..."
 gh release upload "$TAG" \
   --repo "$RELEASES_REPO" \
-  "$INSTALLER" "$UPDATER" "$SIGFILE" \
+  "${ARTIFACTS[@]}" \
   --clobber
 
 echo ""
