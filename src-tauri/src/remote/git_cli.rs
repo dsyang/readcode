@@ -111,10 +111,12 @@ impl RemoteRepo {
     /// Execute a command string on the remote host via SSH.
     async fn run_ssh(&self, remote_cmd: &str) -> Result<String, String> {
         let login_shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        let ctl_path = format!("/tmp/readcode-ssh-{}", &self.ssh_host);
+        let ctl_dir = ssh_control_dir();
+        let _ = std::fs::create_dir_all(&ctl_dir);
+        let ctl_path = format!("{}/ssh-%C", ctl_dir);
         let ssh_invocation = format!(
-            "ssh -T -o ControlMaster=auto -o ControlPath={} -o ControlPersist=3600 -o ServerAliveInterval=60 {} {}",
-            sh_quote(&ctl_path),
+            "ssh -T -o ControlMaster=auto -o ControlPath={} -o ControlPersist=3600 -o ServerAliveInterval=60 -o ClearAllForwardings=yes {} {}",
+            ctl_path,
             &self.ssh_host,
             sh_quote(remote_cmd),
         );
@@ -363,6 +365,15 @@ impl RemoteRepo {
             new_content,
             status,
         })
+    }
+}
+
+/// Per-user directory for ssh ControlMaster sockets. Falls back to /tmp if
+/// $HOME is unset; callers must `create_dir_all` before use.
+fn ssh_control_dir() -> String {
+    match std::env::var("HOME") {
+        Ok(h) if !h.is_empty() => format!("{h}/.cache/readcode"),
+        _ => "/tmp/readcode".to_string(),
     }
 }
 
