@@ -18,10 +18,8 @@ impl Repo {
 
         // Find the base: parent of the oldest selected commit
         let base_tree = if !range.commits.is_empty() {
-            let oldest_oid =
-                Oid::from_str(&range.commits[0]).map_err(|_| {
-                    ReviewError::CommitNotFound(range.commits[0].clone())
-                })?;
+            let oldest_oid = Oid::from_str(&range.commits[0])
+                .map_err(|_| ReviewError::CommitNotFound(range.commits[0].clone()))?;
             let oldest_commit = repo
                 .find_commit(oldest_oid)
                 .map_err(|_| ReviewError::CommitNotFound(range.commits[0].clone()))?;
@@ -53,26 +51,20 @@ impl Repo {
         } else {
             // Diff from base to newest commit
             let newest_oid = Oid::from_str(range.commits.last().unwrap())
-                .map_err(|_| {
-                    ReviewError::CommitNotFound(range.commits.last().unwrap().clone())
-                })?;
-            let newest_commit = repo.find_commit(newest_oid).map_err(|_| {
-                ReviewError::CommitNotFound(range.commits.last().unwrap().clone())
-            })?;
+                .map_err(|_| ReviewError::CommitNotFound(range.commits.last().unwrap().clone()))?;
+            let newest_commit = repo
+                .find_commit(newest_oid)
+                .map_err(|_| ReviewError::CommitNotFound(range.commits.last().unwrap().clone()))?;
             let newest_tree = newest_commit.tree()?;
 
             let mut opts = DiffOptions::new();
-            let diff = repo.diff_tree_to_tree(
-                base_tree.as_ref(),
-                Some(&newest_tree),
-                Some(&mut opts),
-            )?;
+            let diff =
+                repo.diff_tree_to_tree(base_tree.as_ref(), Some(&newest_tree), Some(&mut opts))?;
             (diff, newest_oid.to_string()[..7].to_string())
         };
 
         let files = extract_diff_files(&diff)?;
-        let base_oid = base_tree
-            .map(|t| t.id().to_string());
+        let base_oid = base_tree.map(|t| t.id().to_string());
 
         Ok(MergedDiff {
             files,
@@ -93,7 +85,8 @@ impl Repo {
         let base_oid = if !range.commits.is_empty() {
             let oldest_oid = Oid::from_str(&range.commits[0])
                 .map_err(|_| ReviewError::CommitNotFound(range.commits[0].clone()))?;
-            let oldest_commit = repo.find_commit(oldest_oid)
+            let oldest_commit = repo
+                .find_commit(oldest_oid)
                 .map_err(|_| ReviewError::CommitNotFound(range.commits[0].clone()))?;
             if oldest_commit.parent_count() > 0 {
                 Some(oldest_commit.parent(0)?.id())
@@ -116,8 +109,8 @@ impl Repo {
             // Read from working directory
             self.get_file_from_workdir(path).unwrap_or_default()
         } else if let Some(newest) = range.commits.last() {
-            let oid = Oid::from_str(newest)
-                .map_err(|_| ReviewError::CommitNotFound(newest.clone()))?;
+            let oid =
+                Oid::from_str(newest).map_err(|_| ReviewError::CommitNotFound(newest.clone()))?;
             self.get_file_at_oid(path, oid).unwrap_or_default()
         } else {
             String::new()
@@ -147,12 +140,12 @@ impl Repo {
             .find_commit(oid)
             .map_err(|_| ReviewError::CommitNotFound(oid.to_string()))?;
         let tree = commit.tree()?;
-        let entry = tree.get_path(std::path::Path::new(path)).map_err(|_| {
-            ReviewError::FileNotFound {
-                path: path.to_string(),
-                rev: oid.to_string(),
-            }
-        })?;
+        let entry =
+            tree.get_path(std::path::Path::new(path))
+                .map_err(|_| ReviewError::FileNotFound {
+                    path: path.to_string(),
+                    rev: oid.to_string(),
+                })?;
         let blob = repo.find_blob(entry.id())?;
         Ok(String::from_utf8_lossy(blob.content()).to_string())
     }
@@ -174,8 +167,8 @@ impl Repo {
         if rev == "WORKING_TREE" {
             self.get_file_from_workdir(path)
         } else {
-            let oid = Oid::from_str(rev)
-                .map_err(|_| ReviewError::CommitNotFound(rev.to_string()))?;
+            let oid =
+                Oid::from_str(rev).map_err(|_| ReviewError::CommitNotFound(rev.to_string()))?;
             self.get_file_at_oid(path, oid)
         }
     }
@@ -200,9 +193,7 @@ fn extract_diff_files(diff: &Diff) -> Result<Vec<DiffFile>, ReviewError> {
             .unwrap_or_default();
 
         let old_path = if delta.status() == git2::Delta::Renamed {
-            old_file
-                .path()
-                .map(|p| p.to_string_lossy().to_string())
+            old_file.path().map(|p| p.to_string_lossy().to_string())
         } else {
             None
         };
@@ -219,12 +210,10 @@ fn extract_diff_files(diff: &Diff) -> Result<Vec<DiffFile>, ReviewError> {
         // Count additions/deletions from the patch
         let mut additions = 0u32;
         let mut deletions = 0u32;
-        if let Ok(patch) = git2::Patch::from_diff(diff, i) {
-            if let Some(patch) = patch {
-                let (_, adds, dels) = patch.line_stats()?;
-                additions = adds as u32;
-                deletions = dels as u32;
-            }
+        if let Ok(Some(patch)) = git2::Patch::from_diff(diff, i) {
+            let (_, adds, dels) = patch.line_stats()?;
+            additions = adds as u32;
+            deletions = dels as u32;
         }
 
         files.push(DiffFile {

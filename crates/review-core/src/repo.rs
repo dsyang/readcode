@@ -14,8 +14,8 @@ pub struct Repo {
 impl Repo {
     /// Open a repository at the given path (discovers .git automatically).
     pub fn open(path: &str) -> Result<Self, ReviewError> {
-        let repo = Repository::discover(path)
-            .map_err(|_| ReviewError::RepoNotFound(path.to_string()))?;
+        let repo =
+            Repository::discover(path).map_err(|_| ReviewError::RepoNotFound(path.to_string()))?;
         Ok(Self { inner: repo })
     }
 
@@ -34,17 +34,13 @@ impl Repo {
             .workdir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
-        let current_branch = self
-            .inner
-            .head()
-            .ok()
-            .and_then(|h| {
-                if h.is_branch() {
-                    h.shorthand().map(|s| s.to_string())
-                } else {
-                    None
-                }
-            });
+        let current_branch = self.inner.head().ok().and_then(|h| {
+            if h.is_branch() {
+                h.shorthand().map(|s| s.to_string())
+            } else {
+                None
+            }
+        });
         RepoInfo {
             workdir,
             current_branch,
@@ -76,8 +72,7 @@ impl Repo {
             let oid = oid_result?;
             let commit = self.inner.find_commit(oid)?;
             let oid_str = oid.to_string();
-            let parent_strs: Vec<String> =
-                commit.parent_ids().map(|p| p.to_string()).collect();
+            let parent_strs: Vec<String> = commit.parent_ids().map(|p| p.to_string()).collect();
 
             raw_commits.push(RawCommit {
                 oid: oid_str,
@@ -108,9 +103,11 @@ impl Repo {
 
     /// Get the full commit message (subject + body) for a given OID.
     pub fn get_commit_message(&self, oid_str: &str) -> Result<String, ReviewError> {
-        let oid = Oid::from_str(oid_str)
-            .map_err(|e| ReviewError::Other(format!("invalid oid: {e}")))?;
-        let commit = self.inner.find_commit(oid)
+        let oid =
+            Oid::from_str(oid_str).map_err(|e| ReviewError::Other(format!("invalid oid: {e}")))?;
+        let commit = self
+            .inner
+            .find_commit(oid)
             .map_err(|e| ReviewError::Other(format!("commit not found: {e}")))?;
         Ok(commit.message().unwrap_or("").to_string())
     }

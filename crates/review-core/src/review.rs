@@ -151,8 +151,8 @@ impl ReviewSession {
         fs::create_dir_all(&dir).map_err(|e| ReviewError::Other(e.to_string()))?;
 
         let path = session_path(storage_dir, &self.session.id);
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| ReviewError::Other(e.to_string()))?;
+        let json =
+            serde_json::to_string_pretty(self).map_err(|e| ReviewError::Other(e.to_string()))?;
         fs::write(&path, json).map_err(|e| ReviewError::Other(e.to_string()))?;
         Ok(path)
     }
@@ -280,5 +280,217 @@ impl ReviewSession {
     /// Export as formatted JSON string.
     pub fn export_json(&self) -> Result<String, ReviewError> {
         serde_json::to_string_pretty(self).map_err(|e| ReviewError::Other(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_session() -> ReviewSession {
+        ReviewSession::new(
+            "/tmp/repo".to_string(),
+            "local".to_string(),
+            Some("main".to_string()),
+            Some("aaa".to_string()),
+            "bbb".to_string(),
+            vec!["aaa".to_string(), "bbb".to_string()],
+        )
+    }
+
+    #[test]
+    fn new_session_has_no_comments_or_edits() {
+        let s = make_session();
+        assert_eq!(s.version, "1.0");
+        assert!(s.comments.is_empty());
+        assert!(s.edits.is_empty());
+        assert!(s.summary.is_none());
+        assert_eq!(s.session.reviewed_commits.len(), 2);
+    }
+
+    #[test]
+    fn add_comment_returns_id_and_appends() {
+        let mut s = make_session();
+        let id = s.add_comment(
+            "main.rs".to_string(),
+            LineRange {
+                side: DiffSide::New,
+                start: 10,
+                end: 15,
+            },
+            "looks good".to_string(),
+            CommentType::Comment,
+            Severity::Info,
+            CommentContext {
+                before: "fn main() {".to_string(),
+                content: "println!(\"hello\");".to_string(),
+                after: "}".to_string(),
+            },
+        );
+        assert!(!id.is_empty());
+        assert_eq!(s.comments.len(), 1);
+        assert_eq!(s.comments[0].id, id);
+        assert_eq!(s.comments[0].body, "looks good");
+        assert!(!s.comments[0].resolved);
+    }
+
+    #[test]
+    fn toggle_resolved_flips_state() {
+        let mut s = make_session();
+        let id = s.add_comment(
+            "f.rs".to_string(),
+            LineRange {
+                side: DiffSide::New,
+                start: 1,
+                end: 1,
+            },
+            "fix".to_string(),
+            CommentType::Issue,
+            Severity::Warning,
+            CommentContext {
+                before: String::new(),
+                content: String::new(),
+                after: String::new(),
+            },
+        );
+        assert!(s.toggle_resolved(&id));
+        assert!(s.comments[0].resolved);
+        assert!(!s.toggle_resolved(&id));
+        assert!(!s.comments[0].resolved);
+    }
+
+    #[test]
+    fn toggle_resolved_nonexistent_returns_false() {
+        let mut s = make_session();
+        assert!(!s.toggle_resolved("nonexistent"));
+    }
+
+    #[test]
+    fn delete_comment_removes_it() {
+        let mut s = make_session();
+        let id = s.add_comment(
+            "f.rs".to_string(),
+            LineRange {
+                side: DiffSide::Old,
+                start: 1,
+                end: 1,
+            },
+            "delete me".to_string(),
+            CommentType::Comment,
+            Severity::Info,
+            CommentContext {
+                before: String::new(),
+                content: String::new(),
+                after: String::new(),
+            },
+        );
+        assert!(s.delete_comment(&id));
+        assert!(s.comments.is_empty());
+    }
+
+    #[test]
+    fn delete_nonexistent_comment_returns_false() {
+        let mut s = make_session();
+        assert!(!s.delete_comment("missing"));
+    }
+
+    #[test]
+    fn add_edit_appends() {
+        let mut s = make_session();
+        let id = s.add_edit(
+            "lib.rs".to_string(),
+            EditLineRange { start: 5, end: 10 },
+            "old code".to_string(),
+            "new code".to_string(),
+            "refactored".to_string(),
+            None,
+        );
+        assert!(!id.is_empty());
+        assert_eq!(s.edits.len(), 1);
+        assert_eq!(s.edits[0].file, "lib.rs");
+    }
+
+    #[test]
+    fn export_json_roundtrips() {
+        let mut s = make_session();
+        s.add_comment(
+            "f.rs".to_string(),
+            LineRange {
+                side: DiffSide::New,
+                start: 1,
+                end: 2,
+            },
+            "test".to_string(),
+            CommentType::Suggestion,
+            Severity::Suggestion,
+            CommentContext {
+                before: "a".to_string(),
+                content: "b".to_string(),
+                after: "c".to_string(),
+            },
+        );
+        let json = s.export_json().expect("export");
+        let loaded: ReviewSession = serde_json::from_str(&json).expect("parse");
+        assert_eq!(loaded.comments.len(), 1);
+        assert_eq!(loaded.session.id, s.session.id);
+    }
+
+    #[test]
+    fn save_and_load_roundtrip() {
+        let dir = tempfile::tempdir().expect("tmpdir");
+        let mut s = make_session();
+        s.add_comment(
+            "f.rs".to_string(),
+            LineRange {
+                side: DiffSide::New,
+                start: 1,
+                end: 1,
+            },
+            "saved".to_string(),
+            CommentType::Comment,
+            Severity::Info,
+            CommentContext {
+                before: String::new(),
+                content: String::new(),
+                after: String::new(),
+            },
+        );
+        s.save(dir.path()).expect("save");
+        let loaded = ReviewSession::load(dir.path(), &s.session.id).expect("load");
+        assert_eq!(loaded.comments.len(), 1);
+        assert_eq!(loaded.comments[0].body, "saved");
+    }
+
+    #[test]
+    fn list_active_and_end() {
+        let dir = tempfile::tempdir().expect("tmpdir");
+        let s = make_session();
+        s.save(dir.path()).expect("save");
+
+        let active = ReviewSession::list_active(dir.path()).expect("list");
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0], s.session.id);
+
+        ReviewSession::end(dir.path(), &s.session.id).expect("end");
+        let active = ReviewSession::list_active(dir.path()).expect("list after end");
+        assert!(active.is_empty());
+    }
+
+    #[test]
+    fn discard_removes_file() {
+        let dir = tempfile::tempdir().expect("tmpdir");
+        let s = make_session();
+        s.save(dir.path()).expect("save");
+
+        ReviewSession::discard(dir.path(), &s.session.id).expect("discard");
+        let active = ReviewSession::list_active(dir.path()).expect("list");
+        assert!(active.is_empty());
+    }
+
+    #[test]
+    fn list_active_empty_dir() {
+        let dir = tempfile::tempdir().expect("tmpdir");
+        let active = ReviewSession::list_active(dir.path()).expect("list");
+        assert!(active.is_empty());
     }
 }

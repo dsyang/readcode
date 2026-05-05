@@ -57,7 +57,12 @@ fn allowed_fields(event: &str) -> &'static [&'static str] {
         "repo_open_success" => &["hashed_repo_id", "commit_count", "duration_ms"],
         "repo_open_failure" => &["error_kind"],
         "commits_loaded" => &["count", "duration_ms"],
-        "diff_loaded" => &["selected_commit_count", "file_count", "total_changed_lines", "duration_ms"],
+        "diff_loaded" => &[
+            "selected_commit_count",
+            "file_count",
+            "total_changed_lines",
+            "duration_ms",
+        ],
         "file_selected" => &["count"],
         "session_created" => &[],
         "session_loaded" => &[],
@@ -138,10 +143,7 @@ pub fn sanitize(event: &str, payload: serde_json::Value) -> serde_json::Value {
 /// Accepts a structured event from the frontend, sanitizes it, and writes it
 /// to the log file via the tracing infrastructure.
 #[tauri::command]
-pub fn log_event(
-    event: FrontendEvent,
-    _state: State<'_, DiagnosticsState>,
-) -> Result<(), String> {
+pub fn log_event(event: FrontendEvent, _state: State<'_, DiagnosticsState>) -> Result<(), String> {
     let clean_payload = sanitize(&event.event, event.payload);
     tracing::info!(
         event = %event.event,

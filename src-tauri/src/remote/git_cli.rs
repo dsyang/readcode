@@ -49,7 +49,13 @@ impl RemoteRepo {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
 
-        Ok((repo, RepoInfo { workdir: toplevel, current_branch }))
+        Ok((
+            repo,
+            RepoInfo {
+                workdir: toplevel,
+                current_branch,
+            },
+        ))
     }
 
     pub async fn shutdown(self) {}
@@ -172,7 +178,10 @@ impl RemoteRepo {
             .await?;
 
         let log = &results[0];
-        let head_oid = results.get(1).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let head_oid = results
+            .get(1)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
 
         let mut raw = Vec::new();
         for line in log.lines() {
@@ -217,7 +226,11 @@ impl RemoteRepo {
             if range.commits.is_empty() {
                 ("HEAD".to_string(), None, "Working Tree".to_string())
             } else if range.include_working_tree {
-                (format!("{}^", range.commits[0]), None, "Working Tree".to_string())
+                (
+                    format!("{}^", range.commits[0]),
+                    None,
+                    "Working Tree".to_string(),
+                )
             } else {
                 let newest = range.commits.last().unwrap().clone();
                 let short = newest[..7.min(newest.len())].to_string();
@@ -244,7 +257,11 @@ impl RemoteRepo {
 
         let base = {
             let resolved = results[0].trim();
-            if resolved.is_empty() { EMPTY_TREE.to_string() } else { resolved.to_string() }
+            if resolved.is_empty() {
+                EMPTY_TREE.to_string()
+            } else {
+                resolved.to_string()
+            }
         };
         let numstat = &results[1];
         let name_status = &results[2];
@@ -277,9 +294,17 @@ impl RemoteRepo {
             }
             let letter = cols[0];
             let (status, path, old_path) = if letter.starts_with('R') && cols.len() >= 3 {
-                (FileStatus::Renamed, cols[2].to_string(), Some(cols[1].to_string()))
+                (
+                    FileStatus::Renamed,
+                    cols[2].to_string(),
+                    Some(cols[1].to_string()),
+                )
             } else if letter.starts_with('C') && cols.len() >= 3 {
-                (FileStatus::Copied, cols[2].to_string(), Some(cols[1].to_string()))
+                (
+                    FileStatus::Copied,
+                    cols[2].to_string(),
+                    Some(cols[1].to_string()),
+                )
             } else {
                 let s = match letter.chars().next().unwrap_or('M') {
                     'A' => FileStatus::Added,

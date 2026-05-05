@@ -30,6 +30,12 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+# Run the full test suite before proceeding
+echo "Running test suite..."
+npm run test:all
+echo "All tests passed."
+echo ""
+
 # Load signing key from local env file
 ENV_FILE="$HOME/.tauri/readcode.env"
 if [ ! -f "$ENV_FILE" ]; then

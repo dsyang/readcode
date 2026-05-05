@@ -31,8 +31,11 @@ See the [`plans/`](plans/) folder for design docs, todos, and session transcript
 ## Development
 
 ```bash
-# Install dependencies
+# Install dependencies (required before typechecking — tsc resolves vitest/@testing-library types from node_modules)
 npm install
+
+# Enable the shared pre-commit hook (runs scripts/check.sh fast)
+git config core.hooksPath hooks
 
 # Run in development mode
 npm run tauri dev
