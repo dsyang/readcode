@@ -3,9 +3,15 @@ mod support;
 use review_core::repo::Repo;
 use review_core::types::{CommitRange, FileStatus};
 
-fn find_file<'a>(files: &'a [review_core::types::DiffFile], path: &str) -> &'a review_core::types::DiffFile {
+fn find_file<'a>(
+    files: &'a [review_core::types::DiffFile],
+    path: &str,
+) -> &'a review_core::types::DiffFile {
     files.iter().find(|f| f.path == path).unwrap_or_else(|| {
-        panic!("file {path} not found in diff; files: {:?}", files.iter().map(|f| &f.path).collect::<Vec<_>>())
+        panic!(
+            "file {path} not found in diff; files: {:?}",
+            files.iter().map(|f| &f.path).collect::<Vec<_>>()
+        )
     })
 }
 
@@ -80,8 +86,7 @@ fn commits_plus_working_tree() {
 
 #[test]
 fn root_commit_shows_all_as_added() {
-    let fix = support::GitFixture::new()
-        .commit("a.txt", "content");
+    let fix = support::GitFixture::new().commit("a.txt", "content");
     let repo = Repo::open(fix.path_str()).expect("open");
     let oids = fix.commit_oids(1);
     let range = CommitRange {
@@ -120,13 +125,22 @@ fn deleted_file_detected() {
     // Stage the deletion and commit
     {
         let mut index = fix.repo.index().expect("index");
-        index.remove_path(std::path::Path::new("a.txt")).expect("remove");
+        index
+            .remove_path(std::path::Path::new("a.txt"))
+            .expect("remove");
         index.write().expect("write index");
         let tree_oid = index.write_tree().expect("write tree");
         let tree = fix.repo.find_tree(tree_oid).expect("find tree");
         let sig = git2::Signature::now("Test User", "test@example.com").expect("sig");
-        let parent = fix.repo.head().expect("HEAD").peel_to_commit().expect("commit");
-        fix.repo.commit(Some("HEAD"), &sig, &sig, "delete a.txt", &tree, &[&parent]).expect("commit");
+        let parent = fix
+            .repo
+            .head()
+            .expect("HEAD")
+            .peel_to_commit()
+            .expect("commit");
+        fix.repo
+            .commit(Some("HEAD"), &sig, &sig, "delete a.txt", &tree, &[&parent])
+            .expect("commit");
     }
 
     let repo = Repo::open(fix.path_str()).expect("open");

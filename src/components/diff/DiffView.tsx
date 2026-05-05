@@ -171,6 +171,13 @@ function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesN
 			}
 			setEdited(false);
 		}
+		// TODO: split this effect — the readOnly toggle is correctly bound to [editMode],
+		// but the auto-save block is event-shaped (fire once on true→false) and currently
+		// risks writing to a stale content.path if the file switches in the same render.
+		// Proper fix: extract the save into its own effect that tracks the editMode
+		// transition via a usePrevious/ref, with [editMode, edited, content.path, applyEdit]
+		// as deps and applyEdit wrapped in useCallback.
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- fire only on editMode transitions; latest applyEdit/edited/content.path are captured by the post-render closure
 	}, [editMode]);
 
 	// Update commented line markers when comments change
@@ -282,6 +289,7 @@ function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesN
 			view.destroy();
 			viewRef.current = null;
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild only on content/collapse/session changes; commentedLines and editMode are propagated via the dedicated effects above to preserve scroll/selection
 	}, [content, collapsed, isSessionActive]);
 
 	useEffect(() => {

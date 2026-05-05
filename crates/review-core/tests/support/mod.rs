@@ -16,8 +16,12 @@ impl GitFixture {
 
         {
             let mut config = repo.config().expect("get config");
-            config.set_str("user.name", "Test User").expect("set user.name");
-            config.set_str("user.email", "test@example.com").expect("set user.email");
+            config
+                .set_str("user.name", "Test User")
+                .expect("set user.name");
+            config
+                .set_str("user.email", "test@example.com")
+                .expect("set user.email");
         }
 
         Self { dir, repo }
@@ -63,7 +67,12 @@ impl GitFixture {
 
     pub fn branch(self, name: &str) -> Self {
         {
-            let head = self.repo.head().expect("HEAD").peel_to_commit().expect("commit");
+            let head = self
+                .repo
+                .head()
+                .expect("HEAD")
+                .peel_to_commit()
+                .expect("commit");
             self.repo.branch(name, &head, false).expect("create branch");
         }
         self.repo
@@ -94,7 +103,12 @@ impl GitFixture {
                 .expect("find branch")
                 .into_reference();
             let their_commit = their_ref.peel_to_commit().expect("peel to commit");
-            let our_commit = self.repo.head().expect("HEAD").peel_to_commit().expect("commit");
+            let our_commit = self
+                .repo
+                .head()
+                .expect("HEAD")
+                .peel_to_commit()
+                .expect("commit");
 
             let ancestor = self
                 .repo

@@ -69,9 +69,6 @@ pub fn save_profile(
 }
 
 #[tauri::command]
-pub fn delete_profile(
-    id: String,
-    app: AppHandle,
-) -> Result<Vec<ConnectionProfile>, String> {
+pub fn delete_profile(id: String, app: AppHandle) -> Result<Vec<ConnectionProfile>, String> {
     profiles::delete(&app_data_dir(&app)?, &id)
 }

@@ -309,7 +309,11 @@ pub fn set_session_summary(
 ) -> Result<ReviewSession, String> {
     let mut guard = session_state.0.lock().unwrap();
     let session = guard.as_mut().ok_or("No active session")?;
-    session.summary = if summary.is_empty() { None } else { Some(summary) };
+    session.summary = if summary.is_empty() {
+        None
+    } else {
+        Some(summary)
+    };
 
     let storage = review_storage_dir(&app, &repo_state)?;
     session.save(&storage).map_err(|e| e.to_string())?;

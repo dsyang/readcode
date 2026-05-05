@@ -151,8 +151,8 @@ impl ReviewSession {
         fs::create_dir_all(&dir).map_err(|e| ReviewError::Other(e.to_string()))?;
 
         let path = session_path(storage_dir, &self.session.id);
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| ReviewError::Other(e.to_string()))?;
+        let json =
+            serde_json::to_string_pretty(self).map_err(|e| ReviewError::Other(e.to_string()))?;
         fs::write(&path, json).map_err(|e| ReviewError::Other(e.to_string()))?;
         Ok(path)
     }
@@ -313,7 +313,11 @@ mod tests {
         let mut s = make_session();
         let id = s.add_comment(
             "main.rs".to_string(),
-            LineRange { side: DiffSide::New, start: 10, end: 15 },
+            LineRange {
+                side: DiffSide::New,
+                start: 10,
+                end: 15,
+            },
             "looks good".to_string(),
             CommentType::Comment,
             Severity::Info,
@@ -335,11 +339,19 @@ mod tests {
         let mut s = make_session();
         let id = s.add_comment(
             "f.rs".to_string(),
-            LineRange { side: DiffSide::New, start: 1, end: 1 },
+            LineRange {
+                side: DiffSide::New,
+                start: 1,
+                end: 1,
+            },
             "fix".to_string(),
             CommentType::Issue,
             Severity::Warning,
-            CommentContext { before: String::new(), content: String::new(), after: String::new() },
+            CommentContext {
+                before: String::new(),
+                content: String::new(),
+                after: String::new(),
+            },
         );
         assert!(s.toggle_resolved(&id));
         assert!(s.comments[0].resolved);
@@ -358,11 +370,19 @@ mod tests {
         let mut s = make_session();
         let id = s.add_comment(
             "f.rs".to_string(),
-            LineRange { side: DiffSide::Old, start: 1, end: 1 },
+            LineRange {
+                side: DiffSide::Old,
+                start: 1,
+                end: 1,
+            },
             "delete me".to_string(),
             CommentType::Comment,
             Severity::Info,
-            CommentContext { before: String::new(), content: String::new(), after: String::new() },
+            CommentContext {
+                before: String::new(),
+                content: String::new(),
+                after: String::new(),
+            },
         );
         assert!(s.delete_comment(&id));
         assert!(s.comments.is_empty());
@@ -395,11 +415,19 @@ mod tests {
         let mut s = make_session();
         s.add_comment(
             "f.rs".to_string(),
-            LineRange { side: DiffSide::New, start: 1, end: 2 },
+            LineRange {
+                side: DiffSide::New,
+                start: 1,
+                end: 2,
+            },
             "test".to_string(),
             CommentType::Suggestion,
             Severity::Suggestion,
-            CommentContext { before: "a".to_string(), content: "b".to_string(), after: "c".to_string() },
+            CommentContext {
+                before: "a".to_string(),
+                content: "b".to_string(),
+                after: "c".to_string(),
+            },
         );
         let json = s.export_json().expect("export");
         let loaded: ReviewSession = serde_json::from_str(&json).expect("parse");
@@ -413,11 +441,19 @@ mod tests {
         let mut s = make_session();
         s.add_comment(
             "f.rs".to_string(),
-            LineRange { side: DiffSide::New, start: 1, end: 1 },
+            LineRange {
+                side: DiffSide::New,
+                start: 1,
+                end: 1,
+            },
             "saved".to_string(),
             CommentType::Comment,
             Severity::Info,
-            CommentContext { before: String::new(), content: String::new(), after: String::new() },
+            CommentContext {
+                before: String::new(),
+                content: String::new(),
+                after: String::new(),
+            },
         );
         s.save(dir.path()).expect("save");
         let loaded = ReviewSession::load(dir.path(), &s.session.id).expect("load");

@@ -23,7 +23,11 @@ fn full_lifecycle() {
     // Add comment
     let comment_id = session.add_comment(
         "src/main.rs".to_string(),
-        LineRange { side: DiffSide::New, start: 10, end: 15 },
+        LineRange {
+            side: DiffSide::New,
+            start: 10,
+            end: 15,
+        },
         "needs refactoring".to_string(),
         CommentType::Issue,
         Severity::Warning,
@@ -52,7 +56,10 @@ fn full_lifecycle() {
     assert!(active.is_empty());
 
     // Ended file should exist with -ended suffix
-    let ended_path = storage.path().join("sessions").join(format!("{}-ended.json", session.session.id));
+    let ended_path = storage
+        .path()
+        .join("sessions")
+        .join(format!("{}-ended.json", session.session.id));
     assert!(ended_path.exists());
 }
 
@@ -69,7 +76,10 @@ fn session_json_schema() {
     );
     session.save(storage.path()).expect("save");
 
-    let json_path = storage.path().join("sessions").join(format!("{}.json", session.session.id));
+    let json_path = storage
+        .path()
+        .join("sessions")
+        .join(format!("{}.json", session.session.id));
     let raw = std::fs::read_to_string(&json_path).expect("read json");
     let parsed: serde_json::Value = serde_json::from_str(&raw).expect("parse json");
 

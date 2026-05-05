@@ -31,13 +31,10 @@ pub fn assemble_commits(raw: &[RawCommit]) -> Vec<CommitInfo> {
         let my_lane = if let Some(&lane) = oid_to_lane.get(&r.oid) {
             lane
         } else {
-            let lane = lanes
-                .iter()
-                .position(|l| l.is_none())
-                .unwrap_or_else(|| {
-                    lanes.push(None);
-                    lanes.len() - 1
-                });
+            let lane = lanes.iter().position(|l| l.is_none()).unwrap_or_else(|| {
+                lanes.push(None);
+                lanes.len() - 1
+            });
             lanes[lane] = Some(r.oid.clone());
             oid_to_color.insert(r.oid.clone(), next_color);
             next_color += 1;
@@ -57,13 +54,10 @@ pub fn assemble_commits(raw: &[RawCommit]) -> Vec<CommitInfo> {
                 oid_to_color.insert(parent_oid.clone(), my_color);
                 my_lane
             } else {
-                let lane = lanes
-                    .iter()
-                    .position(|l| l.is_none())
-                    .unwrap_or_else(|| {
-                        lanes.push(None);
-                        lanes.len() - 1
-                    });
+                let lane = lanes.iter().position(|l| l.is_none()).unwrap_or_else(|| {
+                    lanes.push(None);
+                    lanes.len() - 1
+                });
                 lanes[lane] = Some(parent_oid.clone());
                 oid_to_lane.insert(parent_oid.clone(), lane);
                 let color = next_color;
@@ -228,10 +222,7 @@ mod tests {
 
     #[test]
     fn first_parent_inherits_color() {
-        let commits = vec![
-            raw("B", &["A"], true),
-            raw("A", &[], false),
-        ];
+        let commits = vec![raw("B", &["A"], true), raw("A", &[], false)];
         let result = assemble_commits(&commits);
         assert_eq!(result[0].edges[0].color, 0);
     }

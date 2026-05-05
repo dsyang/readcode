@@ -74,13 +74,20 @@ fn merge_commit_has_two_parents() {
     let repo = Repo::open(fix.path_str()).expect("open");
     let commits = repo.list_commits(50).expect("list");
     let merge = &commits[0];
-    assert_eq!(merge.parent_oids.len(), 2, "merge commit should have 2 parents");
+    assert_eq!(
+        merge.parent_oids.len(),
+        2,
+        "merge commit should have 2 parents"
+    );
 }
 
 #[test]
 fn get_commit_message_returns_full_message() {
-    let fix = support::GitFixture::new()
-        .commit_with_message("a.txt", "hello", "Subject line\n\nBody paragraph.");
+    let fix = support::GitFixture::new().commit_with_message(
+        "a.txt",
+        "hello",
+        "Subject line\n\nBody paragraph.",
+    );
     let repo = Repo::open(fix.path_str()).expect("open");
     let oid = fix.head_oid();
     let msg = repo.get_commit_message(&oid).expect("message");

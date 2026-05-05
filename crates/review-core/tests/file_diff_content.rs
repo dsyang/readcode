@@ -14,7 +14,9 @@ fn added_file_has_empty_old_content() {
         commits: vec![oids[0].clone()],
         include_working_tree: false,
     };
-    let fdc = repo.get_file_diff_content("b.txt", &range).expect("diff content");
+    let fdc = repo
+        .get_file_diff_content("b.txt", &range)
+        .expect("diff content");
     assert_eq!(fdc.path, "b.txt");
     assert!(fdc.old_content.is_empty());
     assert_eq!(fdc.new_content, "new file content");
@@ -32,7 +34,9 @@ fn modified_file_has_both_contents() {
         commits: vec![oids[0].clone()],
         include_working_tree: false,
     };
-    let fdc = repo.get_file_diff_content("a.txt", &range).expect("diff content");
+    let fdc = repo
+        .get_file_diff_content("a.txt", &range)
+        .expect("diff content");
     assert_eq!(fdc.old_content, "version 1");
     assert_eq!(fdc.new_content, "version 2");
     assert!(matches!(fdc.status, FileStatus::Modified));
@@ -48,18 +52,21 @@ fn working_tree_content_from_disk() {
         commits: vec![],
         include_working_tree: true,
     };
-    let fdc = repo.get_file_diff_content("a.txt", &range).expect("diff content");
+    let fdc = repo
+        .get_file_diff_content("a.txt", &range)
+        .expect("diff content");
     assert_eq!(fdc.old_content, "committed");
     assert_eq!(fdc.new_content, "on disk now");
 }
 
 #[test]
 fn get_file_at_revision_returns_content() {
-    let fix = support::GitFixture::new()
-        .commit("a.txt", "hello world");
+    let fix = support::GitFixture::new().commit("a.txt", "hello world");
     let repo = Repo::open(fix.path_str()).expect("open");
     let oid = fix.head_oid();
-    let content = repo.get_file_at_revision("a.txt", &oid).expect("at revision");
+    let content = repo
+        .get_file_at_revision("a.txt", &oid)
+        .expect("at revision");
     assert_eq!(content, "hello world");
 }
 
@@ -69,7 +76,9 @@ fn get_file_at_revision_working_tree() {
         .commit("a.txt", "committed")
         .write_workdir("a.txt", "workdir version");
     let repo = Repo::open(fix.path_str()).expect("open");
-    let content = repo.get_file_at_revision("a.txt", "WORKING_TREE").expect("working tree");
+    let content = repo
+        .get_file_at_revision("a.txt", "WORKING_TREE")
+        .expect("working tree");
     assert_eq!(content, "workdir version");
 }
 
@@ -95,7 +104,9 @@ fn multiple_commits_shows_net_diff() {
         commits: vec![oids[1].clone(), oids[0].clone()],
         include_working_tree: false,
     };
-    let fdc = repo.get_file_diff_content("a.txt", &range).expect("diff content");
+    let fdc = repo
+        .get_file_diff_content("a.txt", &range)
+        .expect("diff content");
     assert_eq!(fdc.old_content, "v1");
     assert_eq!(fdc.new_content, "v3");
 }

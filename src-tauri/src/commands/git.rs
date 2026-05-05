@@ -75,11 +75,10 @@ fn snapshot(state: &RepoState) -> Result<BackendSnapshot, String> {
 pub async fn open_repo(path: String, state: State<'_, RepoState>) -> Result<RepoInfo, String> {
     let path_clone = path.clone();
     let start = Instant::now();
-    let result = tokio::task::spawn_blocking(move || {
-        Repo::open(&path_clone).map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?;
+    let result =
+        tokio::task::spawn_blocking(move || Repo::open(&path_clone).map_err(|e| e.to_string()))
+            .await
+            .map_err(|e| e.to_string())?;
 
     match result {
         Ok(repo) => {
@@ -116,7 +115,9 @@ pub async fn get_commits(
     let commits = match snapshot(&state)? {
         BackendSnapshot::Local => {
             let guard = state.0.lock().unwrap();
-            let BackendState::Local(m) = &*guard else { unreachable!() };
+            let BackendState::Local(m) = &*guard else {
+                unreachable!()
+            };
             let repo = m.lock().unwrap();
             repo.list_commits(n).map_err(|e| e.to_string())?
         }
@@ -140,7 +141,9 @@ pub async fn get_commit_message(
     match snapshot(&state)? {
         BackendSnapshot::Local => {
             let guard = state.0.lock().unwrap();
-            let BackendState::Local(m) = &*guard else { unreachable!() };
+            let BackendState::Local(m) = &*guard else {
+                unreachable!()
+            };
             let repo = m.lock().unwrap();
             repo.get_commit_message(&oid).map_err(|e| e.to_string())
         }
@@ -157,7 +160,9 @@ pub async fn get_merged_diff(
     let diff = match snapshot(&state)? {
         BackendSnapshot::Local => {
             let guard = state.0.lock().unwrap();
-            let BackendState::Local(m) = &*guard else { unreachable!() };
+            let BackendState::Local(m) = &*guard else {
+                unreachable!()
+            };
             let repo = m.lock().unwrap();
             repo.get_merged_diff(&range).map_err(|e| e.to_string())?
         }
@@ -185,7 +190,9 @@ pub async fn get_file_diff_content(
     match snapshot(&state)? {
         BackendSnapshot::Local => {
             let guard = state.0.lock().unwrap();
-            let BackendState::Local(m) = &*guard else { unreachable!() };
+            let BackendState::Local(m) = &*guard else {
+                unreachable!()
+            };
             let repo = m.lock().unwrap();
             repo.get_file_diff_content(&path, &range)
                 .map_err(|e| e.to_string())
@@ -203,7 +210,9 @@ pub async fn get_file_at_revision(
     match snapshot(&state)? {
         BackendSnapshot::Local => {
             let guard = state.0.lock().unwrap();
-            let BackendState::Local(m) = &*guard else { unreachable!() };
+            let BackendState::Local(m) = &*guard else {
+                unreachable!()
+            };
             let repo = m.lock().unwrap();
             repo.get_file_at_revision(&path, &rev)
                 .map_err(|e| e.to_string())
@@ -223,9 +232,9 @@ pub async fn write_file_to_workdir(
     let guard = state.0.lock().unwrap();
     match &*guard {
         BackendState::None => Err("No repository is open".to_string()),
-        BackendState::Remote(_) => Err(
-            "Writing files is not yet supported on remote connections".to_string(),
-        ),
+        BackendState::Remote(_) => {
+            Err("Writing files is not yet supported on remote connections".to_string())
+        }
         BackendState::Local(m) => {
             let repo = m.lock().unwrap();
             let workdir = repo.workdir().ok_or("Bare repository")?;

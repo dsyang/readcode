@@ -17,7 +17,11 @@ fn cleanup_old_logs(log_dir: &PathBuf) {
     if let Ok(entries) = std::fs::read_dir(log_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
             if name.starts_with("readcode.log") {
                 if let Ok(metadata) = entry.metadata() {
                     if let Ok(modified) = metadata.modified() {
@@ -73,7 +77,9 @@ pub fn run() {
             Box::leak(Box::new(guard));
 
             let session_id = uuid::Uuid::new_v4().to_string();
-            commands::diagnostics::SESSION_ID.set(session_id.clone()).ok();
+            commands::diagnostics::SESSION_ID
+                .set(session_id.clone())
+                .ok();
 
             tracing::info!(
                 event = "app_started",
