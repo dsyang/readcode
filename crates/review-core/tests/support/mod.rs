@@ -1,4 +1,4 @@
-use git2::{Repository, Signature};
+use git2::{Repository, RepositoryInitOptions, Signature};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -12,7 +12,9 @@ pub struct GitFixture {
 impl GitFixture {
     pub fn new() -> Self {
         let dir = TempDir::new().expect("create temp dir");
-        let repo = Repository::init(dir.path()).expect("git init");
+        let mut opts = RepositoryInitOptions::new();
+        opts.initial_head("master");
+        let repo = Repository::init_opts(dir.path(), &opts).expect("git init");
 
         {
             let mut config = repo.config().expect("get config");
