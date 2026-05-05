@@ -14,7 +14,6 @@ export function useUpdater() {
       .then(([update, currentVersion]) => {
         const latestVersion = update?.version ?? null;
         const available = !!update?.available;
-        console.info("[updater] check result", { available, currentVersion, latestVersion });
         diag.updaterCheck(available, currentVersion, latestVersion);
         if (available) {
           setUpdateAvailable(true);

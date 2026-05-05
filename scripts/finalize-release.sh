@@ -61,20 +61,43 @@ if [ -n "$WIN_NAME" ]; then
 fi
 
 echo "==> Building latest.json..."
+# Only emit platform entries with both a URL and signature. Tauri's updater
+# parses every entry before picking the current platform, so an empty url ("")
+# fails URL parsing ("relative URL without a base") and breaks updates for
+# all platforms — not just the missing one.
+PLATFORMS_JSON=""
+if [ -n "$MAC_ASSET" ] && [ -n "$MAC_SIG" ]; then
+  PLATFORMS_JSON+=$(cat <<EOF
+    "darwin-aarch64": {
+      "url": "$MAC_ASSET",
+      "signature": "$MAC_SIG"
+    }
+EOF
+)
+fi
+if [ -n "$WIN_ASSET" ] && [ -n "$WIN_SIG" ]; then
+  [ -n "$PLATFORMS_JSON" ] && PLATFORMS_JSON+=$',\n'
+  PLATFORMS_JSON+=$(cat <<EOF
+    "windows-x86_64": {
+      "url": "$WIN_ASSET",
+      "signature": "$WIN_SIG"
+    }
+EOF
+)
+fi
+
+if [ -z "$PLATFORMS_JSON" ]; then
+  echo "Error: no valid platform artifacts found — refusing to publish empty manifest."
+  exit 1
+fi
+
 LATEST_JSON=$(cat <<EOF
 {
   "version": "$VERSION",
   "notes": "See the full release on GitHub.",
   "pub_date": "$PUB_DATE",
   "platforms": {
-    "darwin-aarch64": {
-      "url": "$MAC_ASSET",
-      "signature": "$MAC_SIG"
-    },
-    "windows-x86_64": {
-      "url": "$WIN_ASSET",
-      "signature": "$WIN_SIG"
-    }
+$PLATFORMS_JSON
   }
 }
 EOF
