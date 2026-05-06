@@ -1,4 +1,12 @@
-import type { CommitInfo, CommitRange, FileDiffContent, MergedDiff, RepoInfo } from "../api/types";
+import type {
+  CommitInfo,
+  CommitRange,
+  DiffFile,
+  FileDiffContent,
+  FileStatus,
+  MergedDiff,
+  RepoInfo,
+} from "../api/types";
 import type { ReviewSession, AddCommentArgs, AddEditArgs } from "../api/reviewTypes";
 
 // ── In-memory state that models the Rust backend ───────────��────────
@@ -11,12 +19,26 @@ interface MockRepo {
   workdirFiles: Record<string, string>;
 }
 
+export interface MockFileFixture {
+  path: string;
+  oldContent: string;
+  newContent: string;
+  status?: FileStatus;
+}
+
+export interface IpcInvocation {
+  cmd: string;
+  args?: Record<string, unknown>;
+}
+
 interface MockState {
   repo: MockRepo | null;
   session: ReviewSession | null;
   activeSessions: Map<string, ReviewSession>;
   nextCommentId: number;
   nextEditId: number;
+  multiFileRepo: Map<string, MockFileFixture> | null;
+  invocations: IpcInvocation[];
 }
 
 let state: MockState = freshState();
@@ -28,6 +50,8 @@ function freshState(): MockState {
     activeSessions: new Map(),
     nextCommentId: 1,
     nextEditId: 1,
+    multiFileRepo: null,
+    invocations: [],
   };
 }
 
@@ -73,6 +97,28 @@ export function createSampleCommits(count: number): CommitInfo[] {
   return commits;
 }
 
+/// Set up a fixture where get_merged_diff / get_file_diff_content return the
+/// given multi-file payload keyed by path. Pass to test scenarios that need
+/// to drive DiffView with more than the default single-file `main.rs` mock.
+export function setupMultiFileRepo(opts: { files: MockFileFixture[] }): void {
+  state.multiFileRepo = new Map(opts.files.map((f) => [f.path, f]));
+  if (!state.repo) {
+    setupStandardRepo();
+  }
+}
+
+export function getInvocations(): IpcInvocation[] {
+  return state.invocations;
+}
+
+export function getInvocationsFor(cmd: string): IpcInvocation[] {
+  return state.invocations.filter((i) => i.cmd === cmd);
+}
+
+export function clearInvocations(): void {
+  state.invocations = [];
+}
+
 export function setupStandardRepo(commitCount = 5): MockRepo {
   const commits = createSampleCommits(commitCount);
   const files: Record<string, Record<string, string>> = {};
@@ -96,6 +142,7 @@ export async function mockTauriInvoke(
   cmd: string,
   args?: Record<string, unknown>,
 ): Promise<unknown> {
+  state.invocations.push({ cmd, args });
   switch (cmd) {
     case "open_repo": {
       if (!state.repo) {
@@ -148,15 +195,23 @@ export async function mockTauriInvoke(
     case "get_merged_diff": {
       if (!state.repo) throw new Error("No repository is open");
       const range = args?.range as CommitRange;
-      const files = [
-        {
-          path: "main.rs",
-          status: "Modified" as const,
-          old_path: null,
-          additions: 5,
-          deletions: 2,
-        },
-      ];
+      const files: DiffFile[] = state.multiFileRepo
+        ? Array.from(state.multiFileRepo.values()).map((f) => ({
+            path: f.path,
+            status: f.status ?? "Modified",
+            old_path: null,
+            additions: 0,
+            deletions: 0,
+          }))
+        : [
+            {
+              path: "main.rs",
+              status: "Modified",
+              old_path: null,
+              additions: 5,
+              deletions: 2,
+            },
+          ];
       return {
         files,
         base_oid: range.commits.length > 0 ? "base000" : null,
@@ -168,6 +223,15 @@ export async function mockTauriInvoke(
 
     case "get_file_diff_content": {
       const path = args?.path as string;
+      const fixture = state.multiFileRepo?.get(path);
+      if (fixture) {
+        return {
+          path,
+          old_content: fixture.oldContent,
+          new_content: fixture.newContent,
+          status: fixture.status ?? "Modified",
+        } satisfies FileDiffContent;
+      }
       return {
         path,
         old_content: "old content",
