@@ -5,7 +5,10 @@ use std::time::Instant;
 use review_core::review::{
     CommentContext, CommentType, DiffSide, EditLineRange, LineRange, ReviewSession, Severity,
 };
+use serde::Deserialize;
 use tauri::{AppHandle, Manager, State};
+#[cfg(feature = "ts-export")]
+use ts_rs::TS;
 
 use super::diagnostics::log_ipc_call;
 use super::diagnostics::session_id as diag_session_id;
@@ -15,21 +18,31 @@ pub struct SessionState(pub Mutex<Option<ReviewSession>>);
 
 // ── DTOs for IPC (serde-friendly) ───────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../bindings/")
+)]
 pub struct AddCommentArgs {
     pub file: String,
-    pub side: String,
+    pub side: DiffSide,
     pub start_line: u32,
     pub end_line: u32,
     pub body: String,
-    pub comment_type: String,
-    pub severity: String,
+    pub comment_type: CommentType,
+    pub severity: Severity,
     pub context_before: String,
     pub context_content: String,
     pub context_after: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../bindings/")
+)]
 pub struct AddEditArgs {
     pub file: String,
     pub start_line: u32,
@@ -38,31 +51,6 @@ pub struct AddEditArgs {
     pub new_content: String,
     pub description: String,
     pub associated_comment_id: Option<String>,
-}
-
-fn parse_side(s: &str) -> DiffSide {
-    match s {
-        "old" => DiffSide::Old,
-        _ => DiffSide::New,
-    }
-}
-
-fn parse_comment_type(s: &str) -> CommentType {
-    match s {
-        "suggestion" => CommentType::Suggestion,
-        "issue" => CommentType::Issue,
-        "auto_edit" => CommentType::AutoEdit,
-        _ => CommentType::Comment,
-    }
-}
-
-fn parse_severity(s: &str) -> Severity {
-    match s {
-        "warning" => Severity::Warning,
-        "error" => Severity::Error,
-        "suggestion" => Severity::Suggestion,
-        _ => Severity::Info,
-    }
 }
 
 /// Compute the local storage directory for the current repo's review
@@ -228,13 +216,13 @@ pub fn add_comment(
         session.add_comment(
             args.file,
             LineRange {
-                side: parse_side(&args.side),
+                side: args.side,
                 start: args.start_line,
                 end: args.end_line,
             },
             args.body,
-            parse_comment_type(&args.comment_type),
-            parse_severity(&args.severity),
+            args.comment_type,
+            args.severity,
             CommentContext {
                 before: args.context_before,
                 content: args.context_content,
@@ -247,8 +235,8 @@ pub fn add_comment(
 
         tracing::info!(
             event = "comment_added",
-            severity = %severity,
-            comment_type = %comment_type,
+            severity = ?severity,
+            comment_type = ?comment_type,
             session_id = %diag_session_id(),
         );
 

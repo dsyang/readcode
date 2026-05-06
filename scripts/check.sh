@@ -30,12 +30,18 @@ clippy()     { run "cargo clippy"        cargo clippy -p review-core --all-targe
 clippy_fix() { run "cargo clippy --fix"  cargo clippy --fix --allow-dirty --allow-staged --allow-no-vcs -p review-core --all-targets -- -D warnings; }
 test_rust()  { run "cargo test"          cargo test -p review-core; }
 test_js()    { run "vitest"              npm test; }
+ts_types()   {
+  step "ts-rs codegen up-to-date"
+  ./scripts/generate-types.sh \
+    && git diff --exit-code -- src/api/generatedTypes.ts \
+    || fail "ts-rs codegen up-to-date"
+}
 
 case "$mode" in
-  fast)    typecheck; lint;     fmt_check; clippy ;;
-  autofix) typecheck; lint_fix; fmt_fix;   clippy_fix ;;
+  fast)    typecheck; lint;     fmt_check; clippy;     ts_types ;;
+  autofix) typecheck; lint_fix; fmt_fix;   clippy_fix; ts_types ;;
   test)    test_rust; test_js ;;
-  full)    typecheck; lint;     fmt_check; clippy; test_rust; test_js ;;
+  full)    typecheck; lint;     fmt_check; clippy;     ts_types; test_rust; test_js ;;
   -h|--help|help)
     sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
     exit 0

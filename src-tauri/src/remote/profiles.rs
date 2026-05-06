@@ -1,12 +1,19 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts-export")]
+use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../bindings/")
+)]
 pub struct ConnectionProfile {
     pub id: String,
     pub name: String,
-    #[serde(alias = "connect_command")]
+    #[cfg_attr(not(feature = "ts-export"), serde(alias = "connect_command"))]
     pub ssh_host: String,
     pub repo_path: String,
 }
