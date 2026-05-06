@@ -42,6 +42,18 @@ impl GitFixture {
     }
 
     pub fn commit_with_message(self, filename: &str, content: &str, message: &str) -> Self {
+        self.commit_bytes_with_message(filename, content.as_bytes(), message)
+    }
+
+    /// Commit a file with raw bytes — for binary content, CRLF line endings,
+    /// no-trailing-newline cases, BOMs, or anything else where stringly typed
+    /// `commit()` would be lossy.
+    pub fn commit_bytes(self, filename: &str, content: &[u8]) -> Self {
+        let msg = format!("add {filename}");
+        self.commit_bytes_with_message(filename, content, &msg)
+    }
+
+    pub fn commit_bytes_with_message(self, filename: &str, content: &[u8], message: &str) -> Self {
         let file_path = self.dir.path().join(filename);
         if let Some(parent) = file_path.parent() {
             std::fs::create_dir_all(parent).expect("create parent dirs");
@@ -61,6 +73,73 @@ impl GitFixture {
             let parents: Vec<&git2::Commit> = parent.iter().collect();
             self.repo
                 .commit(Some("HEAD"), &sig, &sig, message, &tree, &parents)
+                .expect("commit");
+        }
+
+        self
+    }
+
+    /// Rename a tracked file and commit the rename. The new file content is
+    /// preserved verbatim so libgit2's similarity-based rename detection
+    /// triggers on identical bytes.
+    pub fn rename_file(self, from: &str, to: &str) -> Self {
+        let from_path = self.dir.path().join(from);
+        let to_path = self.dir.path().join(to);
+        if let Some(parent) = to_path.parent() {
+            std::fs::create_dir_all(parent).expect("create parent dirs");
+        }
+        std::fs::rename(&from_path, &to_path).expect("rename file");
+
+        let mut index = self.repo.index().expect("get index");
+        index
+            .remove_path(Path::new(from))
+            .expect("remove from index");
+        index.add_path(Path::new(to)).expect("add to index");
+        index.write().expect("write index");
+
+        let tree_oid = index.write_tree().expect("write tree");
+
+        {
+            let tree = self.repo.find_tree(tree_oid).expect("find tree");
+            let sig = Signature::now("Test User", "test@example.com").expect("signature");
+            let parent = self
+                .repo
+                .head()
+                .ok()
+                .and_then(|h| h.peel_to_commit().ok())
+                .expect("HEAD has a commit");
+            self.repo
+                .commit(
+                    Some("HEAD"),
+                    &sig,
+                    &sig,
+                    &format!("rename {from} -> {to}"),
+                    &tree,
+                    &[&parent],
+                )
+                .expect("commit");
+        }
+
+        self
+    }
+
+    /// Create a commit with multiple parents (for octopus-merge fixtures).
+    /// The current index/tree state becomes the commit's tree; pass parent
+    /// OIDs in the order you want them recorded.
+    pub fn commit_with_parents(self, message: &str, parent_oids: &[git2::Oid]) -> Self {
+        let mut index = self.repo.index().expect("get index");
+        let tree_oid = index.write_tree().expect("write tree");
+
+        {
+            let tree = self.repo.find_tree(tree_oid).expect("find tree");
+            let sig = Signature::now("Test User", "test@example.com").expect("signature");
+            let parents: Vec<git2::Commit> = parent_oids
+                .iter()
+                .map(|oid| self.repo.find_commit(*oid).expect("find parent"))
+                .collect();
+            let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+            self.repo
+                .commit(Some("HEAD"), &sig, &sig, message, &tree, &parent_refs)
                 .expect("commit");
         }
 
