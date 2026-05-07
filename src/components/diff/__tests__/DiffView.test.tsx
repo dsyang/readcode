@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { MergeView } from "@codemirror/merge";
 import { EditorView } from "@codemirror/view";
 import { DiffView, type MergeViewFactory } from "../DiffView";
@@ -233,6 +233,45 @@ describe("DiffView", () => {
 		});
 		const call = getInvocationsFor("write_file_to_workdir")[0];
 		expect(call.args).toMatchObject({ path, content: "MODIFIED" });
+	});
+
+	it("Cmd+E toggles edit mode when a session is active", () => {
+		const path = "a.ts";
+		useSelectionStore.setState({
+			mergedDiff: makeMergedDiff([path]),
+			selectedFilePaths: new Set([path]),
+			fileDiffContents: new Map([[path, makeContent(path, "old", "new")]]),
+		});
+		useReviewStore.setState({ isSessionActive: true, editMode: false });
+		render(<DiffView mergeViewFactory={makeStubFactory().factory} />);
+		fireEvent.keyDown(window, { key: "e", metaKey: true });
+		expect(useReviewStore.getState().editMode).toBe(true);
+	});
+
+	it("Ctrl+E toggles edit mode (Windows/Linux fix)", () => {
+		const path = "a.ts";
+		useSelectionStore.setState({
+			mergedDiff: makeMergedDiff([path]),
+			selectedFilePaths: new Set([path]),
+			fileDiffContents: new Map([[path, makeContent(path, "old", "new")]]),
+		});
+		useReviewStore.setState({ isSessionActive: true, editMode: false });
+		render(<DiffView mergeViewFactory={makeStubFactory().factory} />);
+		fireEvent.keyDown(window, { key: "e", ctrlKey: true });
+		expect(useReviewStore.getState().editMode).toBe(true);
+	});
+
+	it("Cmd+E is a no-op when no session is active", () => {
+		const path = "a.ts";
+		useSelectionStore.setState({
+			mergedDiff: makeMergedDiff([path]),
+			selectedFilePaths: new Set([path]),
+			fileDiffContents: new Map([[path, makeContent(path, "old", "new")]]),
+		});
+		useReviewStore.setState({ isSessionActive: false, editMode: false });
+		render(<DiffView mergeViewFactory={makeStubFactory().factory} />);
+		fireEvent.keyDown(window, { key: "e", metaKey: true });
+		expect(useReviewStore.getState().editMode).toBe(false);
 	});
 
 	it("captures get_file_diff_content invocations during a multi-file scenario", async () => {

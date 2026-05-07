@@ -31,10 +31,10 @@ export function DiffView({ mergeViewFactory = defaultMergeViewFactory }: DiffVie
 	const session = useReviewStore((s) => s.session);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-	// Global Cmd+E shortcut
+	// Global Cmd/Ctrl+E shortcut
 	useEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
-			if (e.metaKey && e.key === "e" && isSessionActive) {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "e" && isSessionActive) {
 				e.preventDefault();
 				toggleEditMode();
 			}
