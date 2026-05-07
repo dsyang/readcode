@@ -122,6 +122,7 @@ pub fn run() {
             commands::diagnostics::log_event,
             commands::diagnostics::get_log_path,
             commands::diagnostics::hash_string_cmd,
+            commands::bugreport::save_bug_report,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
