@@ -1,11 +1,16 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use review_core::review::{
     CommentContext, CommentType, DiffSide, EditLineRange, LineRange, ReviewSession, Severity,
 };
+use serde::Deserialize;
 use tauri::{AppHandle, Manager, State};
+#[cfg(feature = "ts-export")]
+use ts_rs::TS;
 
+use super::diagnostics::log_ipc_call;
 use super::diagnostics::session_id as diag_session_id;
 use super::git::RepoState;
 
@@ -13,21 +18,31 @@ pub struct SessionState(pub Mutex<Option<ReviewSession>>);
 
 // ── DTOs for IPC (serde-friendly) ───────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../bindings/")
+)]
 pub struct AddCommentArgs {
     pub file: String,
-    pub side: String,
+    pub side: DiffSide,
     pub start_line: u32,
     pub end_line: u32,
     pub body: String,
-    pub comment_type: String,
-    pub severity: String,
+    pub comment_type: CommentType,
+    pub severity: Severity,
     pub context_before: String,
     pub context_content: String,
     pub context_after: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../bindings/")
+)]
 pub struct AddEditArgs {
     pub file: String,
     pub start_line: u32,
@@ -36,31 +51,6 @@ pub struct AddEditArgs {
     pub new_content: String,
     pub description: String,
     pub associated_comment_id: Option<String>,
-}
-
-fn parse_side(s: &str) -> DiffSide {
-    match s {
-        "old" => DiffSide::Old,
-        _ => DiffSide::New,
-    }
-}
-
-fn parse_comment_type(s: &str) -> CommentType {
-    match s {
-        "suggestion" => CommentType::Suggestion,
-        "issue" => CommentType::Issue,
-        "auto_edit" => CommentType::AutoEdit,
-        _ => CommentType::Comment,
-    }
-}
-
-fn parse_severity(s: &str) -> Severity {
-    match s {
-        "warning" => Severity::Warning,
-        "error" => Severity::Error,
-        "suggestion" => Severity::Suggestion,
-        _ => Severity::Info,
-    }
 }
 
 /// Compute the local storage directory for the current repo's review
@@ -87,31 +77,41 @@ pub fn create_session(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let storage = review_storage_dir(&app, &repo_state)?;
-    let repo_path = repo_state.repo_path()?;
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let storage = review_storage_dir(&app, &repo_state)?;
+        let repo_path = repo_state.repo_path()?;
 
-    let session = ReviewSession::new(
-        repo_path,
-        storage.to_string_lossy().to_string(),
-        branch,
-        base_commit,
-        head_commit,
-        reviewed_commits,
-    );
-    session.save(&storage).map_err(|e| e.to_string())?;
+        let session = ReviewSession::new(
+            repo_path,
+            storage.to_string_lossy().to_string(),
+            branch,
+            base_commit,
+            head_commit,
+            reviewed_commits,
+        );
+        session.save(&storage).map_err(|e| e.to_string())?;
 
-    let result = session.clone();
-    *session_state.0.lock().unwrap() = Some(session);
+        let cloned = session.clone();
+        *session_state.0.lock().unwrap() = Some(session);
 
-    tracing::info!(event = "session_created", session_id = %diag_session_id());
+        tracing::info!(event = "session_created", session_id = %diag_session_id());
 
-    Ok(result)
+        Ok(cloned)
+    })();
+    log_ipc_call("create_session", start, &result);
+    result
 }
 
 #[tauri::command]
 pub fn get_session(session_state: State<SessionState>) -> Result<Option<ReviewSession>, String> {
-    let guard = session_state.0.lock().unwrap();
-    Ok(guard.clone())
+    let start = Instant::now();
+    let result: Result<Option<ReviewSession>, String> = (|| {
+        let guard = session_state.0.lock().unwrap();
+        Ok(guard.clone())
+    })();
+    log_ipc_call("get_session", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -121,14 +121,19 @@ pub fn load_session(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let storage = review_storage_dir(&app, &repo_state)?;
-    let session = ReviewSession::load(&storage, &session_id).map_err(|e| e.to_string())?;
-    let result = session.clone();
-    *session_state.0.lock().unwrap() = Some(session);
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let storage = review_storage_dir(&app, &repo_state)?;
+        let session = ReviewSession::load(&storage, &session_id).map_err(|e| e.to_string())?;
+        let cloned = session.clone();
+        *session_state.0.lock().unwrap() = Some(session);
 
-    tracing::info!(event = "session_loaded", session_id = %diag_session_id());
+        tracing::info!(event = "session_loaded", session_id = %diag_session_id());
 
-    Ok(result)
+        Ok(cloned)
+    })();
+    log_ipc_call("load_session", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -136,8 +141,13 @@ pub fn list_active_sessions(
     app: AppHandle,
     repo_state: State<RepoState>,
 ) -> Result<Vec<String>, String> {
-    let storage = review_storage_dir(&app, &repo_state)?;
-    ReviewSession::list_active(&storage).map_err(|e| e.to_string())
+    let start = Instant::now();
+    let result: Result<Vec<String>, String> = (|| {
+        let storage = review_storage_dir(&app, &repo_state)?;
+        ReviewSession::list_active(&storage).map_err(|e| e.to_string())
+    })();
+    log_ipc_call("list_active_sessions", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -146,12 +156,17 @@ pub fn discard_session(
     app: AppHandle,
     repo_state: State<RepoState>,
 ) -> Result<(), String> {
-    let storage = review_storage_dir(&app, &repo_state)?;
-    ReviewSession::discard(&storage, &session_id).map_err(|e| e.to_string())?;
+    let start = Instant::now();
+    let result: Result<(), String> = (|| {
+        let storage = review_storage_dir(&app, &repo_state)?;
+        ReviewSession::discard(&storage, &session_id).map_err(|e| e.to_string())?;
 
-    tracing::info!(event = "session_discarded", session_id = %diag_session_id());
+        tracing::info!(event = "session_discarded", session_id = %diag_session_id());
 
-    Ok(())
+        Ok(())
+    })();
+    log_ipc_call("discard_session", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -160,22 +175,27 @@ pub fn end_session(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<(), String> {
-    let mut guard = session_state.0.lock().unwrap();
-    if let Some(session) = guard.take() {
-        let comment_count = session.comments.len() as u64;
-        let edit_count = session.edits.len() as u64;
+    let start = Instant::now();
+    let result: Result<(), String> = (|| {
+        let mut guard = session_state.0.lock().unwrap();
+        if let Some(session) = guard.take() {
+            let comment_count = session.comments.len() as u64;
+            let edit_count = session.edits.len() as u64;
 
-        let storage = review_storage_dir(&app, &repo_state)?;
-        ReviewSession::end(&storage, &session.session.id).map_err(|e| e.to_string())?;
+            let storage = review_storage_dir(&app, &repo_state)?;
+            ReviewSession::end(&storage, &session.session.id).map_err(|e| e.to_string())?;
 
-        tracing::info!(
-            event = "session_ended",
-            comment_count = comment_count,
-            edit_count = edit_count,
-            session_id = %diag_session_id(),
-        );
-    }
-    Ok(())
+            tracing::info!(
+                event = "session_ended",
+                comment_count = comment_count,
+                edit_count = edit_count,
+                session_id = %diag_session_id(),
+            );
+        }
+        Ok(())
+    })();
+    log_ipc_call("end_session", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -185,40 +205,45 @@ pub fn add_comment(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let severity = args.severity.clone();
-    let comment_type = args.comment_type.clone();
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let severity = args.severity.clone();
+        let comment_type = args.comment_type.clone();
 
-    let mut guard = session_state.0.lock().unwrap();
-    let session = guard.as_mut().ok_or("No active session")?;
+        let mut guard = session_state.0.lock().unwrap();
+        let session = guard.as_mut().ok_or("No active session")?;
 
-    session.add_comment(
-        args.file,
-        LineRange {
-            side: parse_side(&args.side),
-            start: args.start_line,
-            end: args.end_line,
-        },
-        args.body,
-        parse_comment_type(&args.comment_type),
-        parse_severity(&args.severity),
-        CommentContext {
-            before: args.context_before,
-            content: args.context_content,
-            after: args.context_after,
-        },
-    );
+        session.add_comment(
+            args.file,
+            LineRange {
+                side: args.side,
+                start: args.start_line,
+                end: args.end_line,
+            },
+            args.body,
+            args.comment_type,
+            args.severity,
+            CommentContext {
+                before: args.context_before,
+                content: args.context_content,
+                after: args.context_after,
+            },
+        );
 
-    let storage = review_storage_dir(&app, &repo_state)?;
-    session.save(&storage).map_err(|e| e.to_string())?;
+        let storage = review_storage_dir(&app, &repo_state)?;
+        session.save(&storage).map_err(|e| e.to_string())?;
 
-    tracing::info!(
-        event = "comment_added",
-        severity = %severity,
-        comment_type = %comment_type,
-        session_id = %diag_session_id(),
-    );
+        tracing::info!(
+            event = "comment_added",
+            severity = ?severity,
+            comment_type = ?comment_type,
+            session_id = %diag_session_id(),
+        );
 
-    Ok(session.clone())
+        Ok(session.clone())
+    })();
+    log_ipc_call("add_comment", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -228,16 +253,21 @@ pub fn toggle_comment_resolved(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let mut guard = session_state.0.lock().unwrap();
-    let session = guard.as_mut().ok_or("No active session")?;
-    session.toggle_resolved(&comment_id);
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let mut guard = session_state.0.lock().unwrap();
+        let session = guard.as_mut().ok_or("No active session")?;
+        session.toggle_resolved(&comment_id);
 
-    let storage = review_storage_dir(&app, &repo_state)?;
-    session.save(&storage).map_err(|e| e.to_string())?;
+        let storage = review_storage_dir(&app, &repo_state)?;
+        session.save(&storage).map_err(|e| e.to_string())?;
 
-    tracing::info!(event = "comment_resolved", session_id = %diag_session_id());
+        tracing::info!(event = "comment_resolved", session_id = %diag_session_id());
 
-    Ok(session.clone())
+        Ok(session.clone())
+    })();
+    log_ipc_call("toggle_comment_resolved", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -247,16 +277,21 @@ pub fn delete_comment(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let mut guard = session_state.0.lock().unwrap();
-    let session = guard.as_mut().ok_or("No active session")?;
-    session.delete_comment(&comment_id);
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let mut guard = session_state.0.lock().unwrap();
+        let session = guard.as_mut().ok_or("No active session")?;
+        session.delete_comment(&comment_id);
 
-    let storage = review_storage_dir(&app, &repo_state)?;
-    session.save(&storage).map_err(|e| e.to_string())?;
+        let storage = review_storage_dir(&app, &repo_state)?;
+        session.save(&storage).map_err(|e| e.to_string())?;
 
-    tracing::info!(event = "comment_deleted", session_id = %diag_session_id());
+        tracing::info!(event = "comment_deleted", session_id = %diag_session_id());
 
-    Ok(session.clone())
+        Ok(session.clone())
+    })();
+    log_ipc_call("delete_comment", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -266,38 +301,48 @@ pub fn add_edit(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let mut guard = session_state.0.lock().unwrap();
-    let session = guard.as_mut().ok_or("No active session")?;
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let mut guard = session_state.0.lock().unwrap();
+        let session = guard.as_mut().ok_or("No active session")?;
 
-    session.add_edit(
-        args.file,
-        EditLineRange {
-            start: args.start_line,
-            end: args.end_line,
-        },
-        args.old_content,
-        args.new_content,
-        args.description,
-        args.associated_comment_id,
-    );
+        session.add_edit(
+            args.file,
+            EditLineRange {
+                start: args.start_line,
+                end: args.end_line,
+            },
+            args.old_content,
+            args.new_content,
+            args.description,
+            args.associated_comment_id,
+        );
 
-    let storage = review_storage_dir(&app, &repo_state)?;
-    session.save(&storage).map_err(|e| e.to_string())?;
+        let storage = review_storage_dir(&app, &repo_state)?;
+        session.save(&storage).map_err(|e| e.to_string())?;
 
-    tracing::info!(event = "edit_applied", session_id = %diag_session_id());
+        tracing::info!(event = "edit_applied", session_id = %diag_session_id());
 
-    Ok(session.clone())
+        Ok(session.clone())
+    })();
+    log_ipc_call("add_edit", start, &result);
+    result
 }
 
 #[tauri::command]
 pub fn export_session(session_state: State<SessionState>) -> Result<String, String> {
-    let guard = session_state.0.lock().unwrap();
-    let session = guard.as_ref().ok_or("No active session")?;
-    let result = session.export_json().map_err(|e| e.to_string())?;
+    let start = Instant::now();
+    let result: Result<String, String> = (|| {
+        let guard = session_state.0.lock().unwrap();
+        let session = guard.as_ref().ok_or("No active session")?;
+        let exported = session.export_json().map_err(|e| e.to_string())?;
 
-    tracing::info!(event = "session_exported", session_id = %diag_session_id());
+        tracing::info!(event = "session_exported", session_id = %diag_session_id());
 
-    Ok(result)
+        Ok(exported)
+    })();
+    log_ipc_call("export_session", start, &result);
+    result
 }
 
 #[tauri::command]
@@ -307,16 +352,21 @@ pub fn set_session_summary(
     repo_state: State<RepoState>,
     session_state: State<SessionState>,
 ) -> Result<ReviewSession, String> {
-    let mut guard = session_state.0.lock().unwrap();
-    let session = guard.as_mut().ok_or("No active session")?;
-    session.summary = if summary.is_empty() {
-        None
-    } else {
-        Some(summary)
-    };
+    let start = Instant::now();
+    let result: Result<ReviewSession, String> = (|| {
+        let mut guard = session_state.0.lock().unwrap();
+        let session = guard.as_mut().ok_or("No active session")?;
+        session.summary = if summary.is_empty() {
+            None
+        } else {
+            Some(summary)
+        };
 
-    let storage = review_storage_dir(&app, &repo_state)?;
-    session.save(&storage).map_err(|e| e.to_string())?;
+        let storage = review_storage_dir(&app, &repo_state)?;
+        session.save(&storage).map_err(|e| e.to_string())?;
 
-    Ok(session.clone())
+        Ok(session.clone())
+    })();
+    log_ipc_call("set_session_summary", start, &result);
+    result
 }

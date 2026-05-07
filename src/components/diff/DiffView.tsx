@@ -7,10 +7,18 @@ import { useSelectionStore } from "../../stores/selectionStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { getLanguageExtension } from "./languages";
 import { commentGutter, commentedLinesFacet } from "./commentGutter";
+import { buildCommentedLinesMap } from "./commentedLinesMap";
 import { writeFileToWorkdir } from "../../api/git";
 import type { FileDiffContent } from "../../api/types";
 
-export function DiffView() {
+export type MergeViewFactory = (config: ConstructorParameters<typeof MergeView>[0]) => MergeView;
+const defaultMergeViewFactory: MergeViewFactory = (config) => new MergeView(config);
+
+interface DiffViewProps {
+	mergeViewFactory?: MergeViewFactory;
+}
+
+export function DiffView({ mergeViewFactory = defaultMergeViewFactory }: DiffViewProps = {}) {
 	const selectedFilePaths = useSelectionStore((s) => s.selectedFilePaths);
 	const fileDiffContents = useSelectionStore((s) => s.fileDiffContents);
 	const mergedDiff = useSelectionStore((s) => s.mergedDiff);
@@ -86,21 +94,7 @@ export function DiffView() {
 		.map((f) => f.path)
 		.filter((p) => selectedFilePaths.has(p));
 
-	// Build per-file commented lines from session
-	const commentedLinesMap = new Map<string, { old: Set<number>; new: Set<number> }>();
-	if (session) {
-		for (const c of session.comments) {
-			let entry = commentedLinesMap.get(c.file);
-			if (!entry) {
-				entry = { old: new Set(), new: new Set() };
-				commentedLinesMap.set(c.file, entry);
-			}
-			const side = c.line_range.side === "old" ? entry.old : entry.new;
-			for (let l = c.line_range.start; l <= c.line_range.end; l++) {
-				side.add(l);
-			}
-		}
-	}
+	const commentedLinesMap = buildCommentedLinesMap(session);
 
 	return (
 		<div className="h-full overflow-y-auto" ref={scrollContainerRef}>
@@ -125,6 +119,7 @@ export function DiffView() {
 						editMode={editMode}
 						commentedLinesOld={commented?.old ?? EMPTY_SET}
 						commentedLinesNew={commented?.new ?? EMPTY_SET}
+						mergeViewFactory={mergeViewFactory}
 					/>
 				);
 			})}
@@ -139,9 +134,10 @@ interface FileDiffSectionProps {
 	editMode: boolean;
 	commentedLinesOld: Set<number>;
 	commentedLinesNew: Set<number>;
+	mergeViewFactory: MergeViewFactory;
 }
 
-function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesNew }: FileDiffSectionProps) {
+function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesNew, mergeViewFactory }: FileDiffSectionProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<MergeView | null>(null);
 	const readOnlyCompartment = useRef(new Compartment());
@@ -268,7 +264,7 @@ function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesN
 
 		originalNewContent.current = content.new_content;
 
-		const view = new MergeView({
+		const view = mergeViewFactory({
 			a: {
 				doc: content.old_content,
 				extensions: extensionsA,

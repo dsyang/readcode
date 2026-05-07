@@ -1,13 +1,21 @@
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts-export")]
+use ts_rs::TS;
 
 /// A single commit in the repository, with DAG layout info.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct CommitInfo {
     pub oid: String,
     pub short_oid: String,
     pub parent_oids: Vec<String>,
     pub author_name: String,
     pub author_email: String,
+    #[cfg_attr(feature = "ts-export", ts(type = "number"))]
     pub timestamp: i64,
     pub summary: String,
     pub branches: Vec<String>,
@@ -23,6 +31,11 @@ pub struct CommitInfo {
 
 /// An edge in the DAG graph connecting a commit to its parent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct DagEdge {
     /// Lane of this commit (source).
     pub from_lane: usize,
@@ -34,6 +47,11 @@ pub struct DagEdge {
 
 /// Result of opening a repo.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct RepoInfo {
     pub workdir: String,
     pub current_branch: Option<String>,
@@ -41,6 +59,11 @@ pub struct RepoInfo {
 
 /// A range of commits (plus optionally working tree) to diff.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct CommitRange {
     /// The selected commit OIDs, in topological order (oldest first).
     pub commits: Vec<String>,
@@ -50,6 +73,11 @@ pub struct CommitRange {
 
 /// A single file that was changed in a diff.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct DiffFile {
     pub path: String,
     pub status: FileStatus,
@@ -59,6 +87,11 @@ pub struct DiffFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub enum FileStatus {
     Added,
     Deleted,
@@ -69,6 +102,11 @@ pub enum FileStatus {
 
 /// The result of computing a merged diff over a commit range.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct MergedDiff {
     pub files: Vec<DiffFile>,
     pub base_oid: Option<String>,
@@ -77,6 +115,11 @@ pub struct MergedDiff {
 
 /// Full file contents for the diff viewer (old side + new side).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct FileDiffContent {
     pub path: String,
     pub old_content: String,

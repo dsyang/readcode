@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "ts-export")]
+use ts_rs::TS;
 use uuid::Uuid;
 
 use crate::error::ReviewError;
@@ -9,6 +11,11 @@ use crate::error::ReviewError;
 // ── Top-level session file ──────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct ReviewSession {
     pub version: String,
     pub session: SessionMeta,
@@ -18,6 +25,11 @@ pub struct ReviewSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct SessionMeta {
     pub id: String,
     pub repo: String,
@@ -26,13 +38,20 @@ pub struct SessionMeta {
     pub base_commit: Option<String>,
     pub head_commit: String,
     pub reviewed_commits: Vec<String>,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
     pub created_at: DateTime<Utc>,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
     pub updated_at: DateTime<Utc>,
 }
 
 // ── Comments ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct Comment {
     pub id: String,
     #[serde(rename = "type")]
@@ -42,12 +61,18 @@ pub struct Comment {
     pub body: String,
     pub severity: Severity,
     pub resolved: bool,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
     pub created_at: DateTime<Utc>,
     pub context: CommentContext,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub enum CommentType {
     Comment,
     Suggestion,
@@ -56,6 +81,11 @@ pub enum CommentType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct LineRange {
     pub side: DiffSide,
     pub start: u32,
@@ -64,6 +94,11 @@ pub struct LineRange {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub enum DiffSide {
     Old,
     New,
@@ -71,6 +106,11 @@ pub enum DiffSide {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub enum Severity {
     Info,
     Warning,
@@ -79,6 +119,11 @@ pub enum Severity {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct CommentContext {
     pub before: String,
     pub content: String,
@@ -88,6 +133,11 @@ pub struct CommentContext {
 // ── Edits ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct Edit {
     pub id: String,
     pub file: String,
@@ -95,11 +145,17 @@ pub struct Edit {
     pub old_content: String,
     pub new_content: String,
     pub description: String,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
     pub applied_at: DateTime<Utc>,
     pub associated_comment_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "ts-export",
+    derive(TS),
+    ts(export, export_to = "../../../bindings/")
+)]
 pub struct EditLineRange {
     pub start: u32,
     pub end: u32,

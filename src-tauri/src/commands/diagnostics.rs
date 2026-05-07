@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::time::Instant;
 
 use sha2::Digest;
 use tauri::State;
@@ -40,6 +41,29 @@ pub fn classify_error(msg: &str) -> &'static str {
     }
 }
 
+/// Uniform per-IPC-call instrumentation. Emits `ipc_call` events alongside any
+/// domain-specific events so a week of dogfooding produces analyzable
+/// per-command latency and error-rate data, including failure paths that
+/// would otherwise be silent.
+pub fn log_ipc_call<T>(command: &'static str, start: Instant, result: &Result<T, String>) {
+    let duration_ms = start.elapsed().as_millis() as u64;
+    match result {
+        Ok(_) => tracing::info!(
+            event = "ipc_call",
+            command = command,
+            duration_ms = duration_ms,
+            session_id = %session_id(),
+        ),
+        Err(e) => tracing::warn!(
+            event = "ipc_call",
+            command = command,
+            duration_ms = duration_ms,
+            error_kind = %classify_error(e),
+            session_id = %session_id(),
+        ),
+    }
+}
+
 /// Hashes an input string to an 8-character lowercase hex string (first 4 bytes of SHA-256).
 /// Used to correlate events from the same repo without logging the path.
 pub fn hash_string(input: &str) -> String {
@@ -73,6 +97,7 @@ fn allowed_fields(event: &str) -> &'static [&'static str] {
         "comment_resolved" => &[],
         "comment_deleted" => &[],
         "edit_applied" => &[],
+        "ipc_call" => &["command", "duration_ms", "error_kind"],
         "ipc_error" => &["command_name", "error_kind"],
         "js_error" => &["error_class", "component_stack_depth"],
         "app_context" => &["screen_width", "screen_height", "locale"],

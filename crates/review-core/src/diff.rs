@@ -1,4 +1,4 @@
-use git2::{Diff, DiffOptions, Oid};
+use git2::{Diff, DiffFindOptions, DiffOptions, Oid};
 
 use crate::error::ReviewError;
 use crate::repo::Repo;
@@ -37,7 +37,7 @@ impl Repo {
             Some(head.tree()?)
         };
 
-        let (diff, head_description) = if range.include_working_tree {
+        let (mut diff, head_description) = if range.include_working_tree {
             // Diff from base to working tree (includes index + untracked files)
             let mut opts = DiffOptions::new();
             opts.include_untracked(true);
@@ -62,6 +62,12 @@ impl Repo {
                 repo.diff_tree_to_tree(base_tree.as_ref(), Some(&newest_tree), Some(&mut opts))?;
             (diff, newest_oid.to_string()[..7].to_string())
         };
+
+        // Enable rename/copy detection so file moves surface as a single Renamed
+        // delta instead of an add+delete pair.
+        let mut find_opts = DiffFindOptions::new();
+        find_opts.renames(true).copies(true);
+        diff.find_similar(Some(&mut find_opts))?;
 
         let files = extract_diff_files(&diff)?;
         let base_oid = base_tree.map(|t| t.id().to_string());
