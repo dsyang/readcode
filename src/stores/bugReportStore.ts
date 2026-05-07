@@ -1,15 +1,22 @@
 import { create } from "zustand";
-import { saveBugReport } from "../api/bugReport";
+import { captureScreenshot, saveBugReport } from "../api/bugReport";
 import { diag } from "../diagnostics";
 
-export type BugReportMode = "idle" | "placing" | "editing" | "submitting";
+export type BugReportMode =
+	| "idle"
+	| "capturing1"
+	| "placing"
+	| "editing"
+	| "submitting";
 
 interface BugReportState {
 	mode: BugReportMode;
 	dot: { x: number; y: number } | null;
 	description: string;
 	error: string | null;
-	enter: () => void;
+	frozenImage: string | null;
+	screenshotPath: string | null;
+	enter: () => Promise<void>;
 	placeDot: (x: number, y: number) => void;
 	setDescription: (s: string) => void;
 	submit: () => Promise<void>;
@@ -17,21 +24,41 @@ interface BugReportState {
 	reset: () => void;
 }
 
-// Two RAFs guarantee React commits and the browser paints the popover-hidden
-// state before the screen is captured — single RAF can race with React commit.
-function nextPaint(): Promise<void> {
-	return new Promise((resolve) => {
-		requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-	});
-}
-
 export const useBugReportStore = create<BugReportState>((set, get) => ({
 	mode: "idle",
 	dot: null,
 	description: "",
 	error: null,
+	frozenImage: null,
+	screenshotPath: null,
 
-	enter: () => set({ mode: "placing", dot: null, description: "", error: null }),
+	enter: async () => {
+		if (get().mode !== "idle") return;
+		set({
+			mode: "capturing1",
+			dot: null,
+			description: "",
+			error: null,
+			frozenImage: null,
+			screenshotPath: null,
+		});
+		try {
+			const cap = await captureScreenshot();
+			// User may have canceled while the capture was in flight.
+			if (get().mode !== "capturing1") return;
+			set({
+				mode: "placing",
+				frozenImage: cap.data_url,
+				screenshotPath: cap.path,
+			});
+		} catch (e) {
+			diag.bugReportSubmitted(false);
+			set({
+				mode: "idle",
+				error: e instanceof Error ? e.message : String(e),
+			});
+		}
+	},
 
 	placeDot: (x, y) => {
 		if (get().mode !== "placing") return;
@@ -41,12 +68,17 @@ export const useBugReportStore = create<BugReportState>((set, get) => ({
 	setDescription: (s) => set({ description: s }),
 
 	submit: async () => {
-		const { dot, description, mode } = get();
-		if (mode !== "editing" || !dot) return;
+		const { dot, description, mode, screenshotPath } = get();
+		if (mode !== "editing" || !dot || !screenshotPath) return;
 		set({ mode: "submitting", error: null });
-		await nextPaint();
 		try {
-			await saveBugReport({ description, x: dot.x, y: dot.y });
+			await saveBugReport({
+				description,
+				x: dot.x,
+				y: dot.y,
+				pixel_ratio: window.devicePixelRatio || 1,
+				screenshot_path: screenshotPath,
+			});
 			diag.bugReportSubmitted(true);
 			get().reset();
 		} catch (e) {
@@ -60,5 +92,13 @@ export const useBugReportStore = create<BugReportState>((set, get) => ({
 
 	cancel: () => get().reset(),
 
-	reset: () => set({ mode: "idle", dot: null, description: "", error: null }),
+	reset: () =>
+		set({
+			mode: "idle",
+			dot: null,
+			description: "",
+			error: null,
+			frozenImage: null,
+			screenshotPath: null,
+		}),
 }));

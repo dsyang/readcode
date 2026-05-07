@@ -30,6 +30,8 @@ hex = "0.4"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 xcap = "0.9"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
 ts-rs = { version = "11", optional = true }
 
 [features]

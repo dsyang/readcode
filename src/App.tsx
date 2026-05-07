@@ -78,6 +78,10 @@ function App() {
 	);
 }
 
+const IS_MAC =
+	typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const BUG_REPORT_SHORTCUT = IS_MAC ? "⌘⇧B" : "Ctrl+Shift+B";
+
 function StatusBar() {
 	const repoPath = useSelectionStore((s) => s.repoPath);
 	const currentBranch = useSelectionStore((s) => s.currentBranch);
@@ -122,10 +126,10 @@ function StatusBar() {
 				</span>
 			)}
 			<button
-				onClick={startBugReport}
+				onClick={() => void startBugReport()}
 				className="ml-3 text-zinc-600 hover:text-red-400"
-				title="Report a bug"
-				aria-label="Report a bug"
+				title={`Report a bug (${BUG_REPORT_SHORTCUT})`}
+				aria-label={`Report a bug (${BUG_REPORT_SHORTCUT})`}
 			>
 				<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
 					<path d="M8 1.5a3 3 0 0 0-3 3v.328A4.5 4.5 0 0 0 3.5 8.5V10H1.75a.75.75 0 0 0 0 1.5H3.5v.5a4.5 4.5 0 0 0 9 0v-.5h1.75a.75.75 0 0 0 0-1.5H12.5V8.5a4.5 4.5 0 0 0-1.5-3.354V4.5a3 3 0 0 0-3-3Zm-1.5 3a1.5 1.5 0 1 1 3 0v.05a4.5 4.5 0 0 0-3 0V4.5ZM4 8.5h8V12a4 4 0 1 1-8 0V8.5Z" />

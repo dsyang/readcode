@@ -22,12 +22,31 @@ export function BugReportOverlay() {
 	const dot = useBugReportStore((s) => s.dot);
 	const description = useBugReportStore((s) => s.description);
 	const error = useBugReportStore((s) => s.error);
+	const frozenImage = useBugReportStore((s) => s.frozenImage);
+	const enter = useBugReportStore((s) => s.enter);
 	const placeDot = useBugReportStore((s) => s.placeDot);
 	const setDescription = useBugReportStore((s) => s.setDescription);
 	const submit = useBugReportStore((s) => s.submit);
 	const cancel = useBugReportStore((s) => s.cancel);
 
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+	// Global Cmd/Ctrl+Shift+B opens bug-report mode without firing any
+	// click events, so open menus and modals stay put for the screenshot.
+	useEffect(() => {
+		function handler(e: KeyboardEvent) {
+			if (
+				(e.metaKey || e.ctrlKey) &&
+				e.shiftKey &&
+				e.key.toLowerCase() === "b"
+			) {
+				e.preventDefault();
+				void enter();
+			}
+		}
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [enter]);
 
 	useEffect(() => {
 		if (mode === "idle") return;
@@ -57,6 +76,11 @@ export function BugReportOverlay() {
 		placeDot(e.clientX, e.clientY);
 	};
 
+	const showBanner = mode === "placing";
+	// Frozen image is shown for every non-idle mode after capture1 completes;
+	// during capturing1 we render only a transparent click-blocker.
+	const showFrozenImage = mode !== "capturing1" && frozenImage;
+
 	return (
 		<div
 			className="fixed inset-0 z-50"
@@ -64,7 +88,17 @@ export function BugReportOverlay() {
 			onClick={handleOverlayClick}
 			data-testid="bug-report-overlay"
 		>
-			{mode === "placing" && (
+			{showFrozenImage && (
+				<img
+					src={frozenImage}
+					alt=""
+					aria-hidden
+					className="absolute inset-0 w-full h-full select-none pointer-events-none"
+					draggable={false}
+				/>
+			)}
+
+			{showBanner && (
 				<div className="absolute top-4 left-1/2 -translate-x-1/2 bg-zinc-900/90 border border-zinc-700 text-zinc-200 text-xs px-3 py-1.5 rounded-md shadow-lg pointer-events-none">
 					Click anywhere to mark the issue. Esc to cancel.
 				</div>
