@@ -6,6 +6,10 @@ export type AddCommentArgs = { file: string, side: DiffSide, start_line: number,
 
 export type AddEditArgs = { file: string, start_line: number, end_line: number, old_content: string, new_content: string, description: string, associated_comment_id: string | null, };
 
+export type BugReportEntry = { timestamp: string, description: string, screenshot_path: string, logs_path: string, x: number, y: number, };
+
+export type CapturedScreenshot = { path: string, data_url: string, };
+
 export type Comment = { id: string, type: CommentType, file: string, line_range: LineRange, body: string, severity: Severity, resolved: boolean, created_at: string, context: CommentContext, };
 
 export type CommentContext = { before: string, content: string, after: string, };
@@ -92,6 +96,8 @@ export type MergedDiff = { files: Array<DiffFile>, base_oid: string | null, head
 export type RepoInfo = { workdir: string, current_branch: string | null, };
 
 export type ReviewSession = { version: string, session: SessionMeta, comments: Array<Comment>, edits: Array<Edit>, summary: string | null, };
+
+export type SaveBugReportArgs = { description: string, x: number, y: number, pixel_ratio: number, screenshot_path: string, };
 
 export type SessionMeta = { id: string, repo: string, review_location: string, branch: string | null, base_commit: string | null, head_commit: string, reviewed_commits: Array<string>, created_at: string, updated_at: string, };
 

@@ -150,6 +150,10 @@ export const diag = {
 	updaterError(errorKind: string): void {
 		logEvent("updater_error", { error_kind: errorKind });
 	},
+
+	bugReportSubmitted(success: boolean): void {
+		logEvent("bug_report_submitted", { success });
+	},
 };
 
 /** Maps updater plugin errors to safe, non-private kind labels. */

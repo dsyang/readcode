@@ -103,6 +103,7 @@ fn allowed_fields(event: &str) -> &'static [&'static str] {
         "app_context" => &["screen_width", "screen_height", "locale"],
         "updater_check" => &["available", "current_version", "latest_version"],
         "updater_error" => &["error_kind"],
+        "bug_report_submitted" => &["success"],
         _ => &[],
     }
 }
