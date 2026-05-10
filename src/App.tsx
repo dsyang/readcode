@@ -93,7 +93,7 @@ function StatusBar() {
 	const startBugReport = useBugReportStore((s) => s.enter);
 
 	return (
-		<div className="flex items-center px-4 py-1 bg-zinc-800 border-t border-zinc-700 text-xs text-zinc-500">
+			<div className="flex items-center px-4 py-1 bg-zinc-800 border-t border-zinc-700 text-xs text-zinc-500">
 			{repoPath ? (
 				<span className="flex items-center gap-2">
 					{currentBranch && (
@@ -126,6 +126,13 @@ function StatusBar() {
 				</span>
 			)}
 			<button
+				onClick={showLogs}
+				className="ml-3 text-zinc-600 hover:text-zinc-400"
+				title="Open log folder (for bug reports)"
+			>
+				Show Logs
+			</button>
+			<button
 				onClick={() => void startBugReport()}
 				className="ml-3 text-zinc-600 hover:text-red-400"
 				title={`Report a bug (${BUG_REPORT_SHORTCUT})`}
@@ -134,13 +141,6 @@ function StatusBar() {
 				<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
 					<path d="M8 1.5a3 3 0 0 0-3 3v.328A4.5 4.5 0 0 0 3.5 8.5V10H1.75a.75.75 0 0 0 0 1.5H3.5v.5a4.5 4.5 0 0 0 9 0v-.5h1.75a.75.75 0 0 0 0-1.5H12.5V8.5a4.5 4.5 0 0 0-1.5-3.354V4.5a3 3 0 0 0-3-3Zm-1.5 3a1.5 1.5 0 1 1 3 0v.05a4.5 4.5 0 0 0-3 0V4.5ZM4 8.5h8V12a4 4 0 1 1-8 0V8.5Z" />
 				</svg>
-			</button>
-			<button
-				onClick={showLogs}
-				className="ml-3 text-zinc-600 hover:text-zinc-400"
-				title="Open log folder (for bug reports)"
-			>
-				Show Logs
 			</button>
 		</div>
 	);
