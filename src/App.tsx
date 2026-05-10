@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Allotment } from "allotment";
+import { Allotment, LayoutPriority } from "allotment";
 import "allotment/dist/style.css";
 import { Toolbar } from "./components/layout/Toolbar";
 import { CommitList } from "./components/graph/CommitList";
@@ -47,28 +47,34 @@ function App() {
 
 			<div className="flex-1 min-h-0">
 				<Allotment>
-					{sidebarVisible && (
-						<Allotment.Pane preferredSize={420} minSize={250}>
-							<Allotment vertical>
-								<Allotment.Pane preferredSize="60%">
-									<CommitList />
-								</Allotment.Pane>
-								<Allotment.Pane>
-									<FileList />
-								</Allotment.Pane>
-							</Allotment>
-						</Allotment.Pane>
-					)}
+					<Allotment.Pane
+						preferredSize={420}
+						minSize={250}
+						visible={sidebarVisible}
+						priority={LayoutPriority.Low}
+					>
+						<Allotment vertical>
+							<Allotment.Pane preferredSize="60%">
+								<CommitList />
+							</Allotment.Pane>
+							<Allotment.Pane>
+								<FileList />
+							</Allotment.Pane>
+						</Allotment>
+					</Allotment.Pane>
 
-					<Allotment.Pane>
+					<Allotment.Pane priority={LayoutPriority.High}>
 						<DiffView />
 					</Allotment.Pane>
 
-					{reviewPanelVisible && (
-						<Allotment.Pane preferredSize={300} minSize={200}>
-							<CommentPanel />
-						</Allotment.Pane>
-					)}
+					<Allotment.Pane
+						preferredSize={300}
+						minSize={200}
+						visible={reviewPanelVisible}
+						priority={LayoutPriority.Low}
+					>
+						<CommentPanel />
+					</Allotment.Pane>
 				</Allotment>
 			</div>
 
