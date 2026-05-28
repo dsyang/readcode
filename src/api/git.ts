@@ -37,3 +37,7 @@ export async function writeFileToWorkdir(
 ): Promise<void> {
 	return invoke<void>("write_file_to_workdir", { path, content });
 }
+
+export async function createBranch(name: string, oid: string): Promise<void> {
+	return invoke<void>("create_branch", { name, oid });
+}

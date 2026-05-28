@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useSelectionStore } from "../../stores/selectionStore";
 import { useReviewStore } from "../../stores/reviewStore";
-import { getCommitMessage } from "../../api/git";
+import { createBranch, getCommitMessage } from "../../api/git";
 import type { CommitInfo } from "../../api/types";
 
 const LANE_WIDTH = 16;
@@ -58,6 +58,7 @@ export function CommitList() {
 	const rawToggleWorkingTree = useSelectionStore((s) => s.toggleWorkingTree);
 	const reloadWorkingTree = useSelectionStore((s) => s.reloadWorkingTree);
 	const clearSelection = useSelectionStore((s) => s.clearSelection);
+	const refreshCommits = useSelectionStore((s) => s.refreshCommits);
 	const isSessionActive = useReviewStore((s) => s.isSessionActive);
 	const clearSession = useReviewStore((s) => s.clearSession);
 	const checkExistingSessions = useReviewStore((s) => s.checkExistingSessions);
@@ -85,7 +86,13 @@ export function CommitList() {
 	const activeLanesPerRow = useMemo(() => computeActiveLanes(commits), [commits]);
 	const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
 	const [commitDetail, setCommitDetail] = useState<{ commit: CommitInfo; message: string } | null>(null);
+	const [branchPrompt, setBranchPrompt] = useState<{ commit: CommitInfo; name: string; error: string | null; submitting: boolean } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
+	const branchInputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (branchPrompt) branchInputRef.current?.focus();
+	}, [branchPrompt]);
 
 	useEffect(() => {
 		function handleClick() { setContextMenu(null); }
@@ -242,6 +249,17 @@ export function CommitList() {
 					>
 						Copy full hash
 					</button>
+					<div className="border-t border-zinc-700 my-1" />
+					<button
+						onClick={() => {
+							const commit = contextMenu.commit;
+							setContextMenu(null);
+							setBranchPrompt({ commit, name: "", error: null, submitting: false });
+						}}
+						className="w-full text-left px-3 py-1.5 hover:bg-zinc-700 text-sm text-zinc-200"
+					>
+						Create new branch at this commit
+					</button>
 					{contextMenu.commit.branches.filter((b) => !b.startsWith("origin/")).map((b) => (
 						<button
 							key={b}
@@ -251,6 +269,74 @@ export function CommitList() {
 							Copy branch <span className="text-teal-400 ml-1">{b}</span>
 						</button>
 					))}
+				</div>
+			)}
+
+			{/* Create branch modal */}
+			{branchPrompt && (
+				<div
+					className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+					onClick={() => !branchPrompt.submitting && setBranchPrompt(null)}
+				>
+					<form
+						className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-2xl w-[420px] flex flex-col select-text"
+						onClick={(e) => e.stopPropagation()}
+						onSubmit={async (e) => {
+							e.preventDefault();
+							const name = branchPrompt.name.trim();
+							if (!name) {
+								setBranchPrompt({ ...branchPrompt, error: "Branch name cannot be empty" });
+								return;
+							}
+							setBranchPrompt({ ...branchPrompt, submitting: true, error: null });
+							try {
+								await createBranch(name, branchPrompt.commit.oid);
+								setBranchPrompt(null);
+								await refreshCommits();
+							} catch (err) {
+								setBranchPrompt({ ...branchPrompt, submitting: false, error: String(err) });
+							}
+						}}
+					>
+						<div className="px-5 py-3 border-b border-zinc-700">
+							<div className="text-sm text-zinc-200">Create new branch</div>
+							<div className="text-xs text-zinc-500 mt-1">
+								at <span className="font-mono">{branchPrompt.commit.short_oid}</span>
+								<span className="ml-2">{branchPrompt.commit.summary}</span>
+							</div>
+						</div>
+						<div className="px-5 py-4">
+							<input
+								ref={branchInputRef}
+								type="text"
+								value={branchPrompt.name}
+								onChange={(e) => setBranchPrompt({ ...branchPrompt, name: e.target.value, error: null })}
+								placeholder="branch name"
+								disabled={branchPrompt.submitting}
+								className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+							/>
+							{branchPrompt.error && (
+								<div className="mt-2 text-xs text-red-400">{branchPrompt.error}</div>
+							)}
+						</div>
+						<div className="flex justify-end gap-2 px-5 py-3 border-t border-zinc-700">
+							<button
+								type="button"
+								onClick={() => setBranchPrompt(null)}
+								disabled={branchPrompt.submitting}
+								className="px-3 py-1 text-sm text-zinc-300 hover:text-white"
+							>
+								Cancel
+							</button>
+							<button
+								type="submit"
+								disabled={branchPrompt.submitting || !branchPrompt.name.trim()}
+								className="px-3 py-1 text-sm bg-teal-700 hover:bg-teal-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded"
+							>
+								{branchPrompt.submitting ? "Creating..." : "Create"}
+							</button>
+						</div>
+					</form>
 				</div>
 			)}
 

@@ -111,4 +111,23 @@ impl Repo {
             .map_err(|e| ReviewError::Other(format!("commit not found: {e}")))?;
         Ok(commit.message().unwrap_or("").to_string())
     }
+
+    /// Create a new local branch pointing at the given commit. Errors if the
+    /// branch already exists; matches `git branch <name> <oid>` semantics.
+    pub fn create_branch(&self, name: &str, oid_str: &str) -> Result<(), ReviewError> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return Err(ReviewError::Other(
+                "Branch name cannot be empty".to_string(),
+            ));
+        }
+        let oid =
+            Oid::from_str(oid_str).map_err(|e| ReviewError::Other(format!("invalid oid: {e}")))?;
+        let commit = self
+            .inner
+            .find_commit(oid)
+            .map_err(|e| ReviewError::Other(format!("commit not found: {e}")))?;
+        self.inner.branch(trimmed, &commit, false)?;
+        Ok(())
+    }
 }

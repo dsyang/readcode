@@ -255,6 +255,33 @@ pub async fn get_file_at_revision(
 }
 
 #[tauri::command]
+pub async fn create_branch(
+    name: String,
+    oid: String,
+    state: State<'_, RepoState>,
+) -> Result<(), String> {
+    let start = Instant::now();
+    // Only supported for local backends; remote branch creation would need
+    // shelling out through the SSH tunnel and isn't required for now.
+    let result: Result<(), String> = async {
+        let guard = state.0.lock().unwrap();
+        match &*guard {
+            BackendState::None => Err("No repository is open".to_string()),
+            BackendState::Remote(_) => {
+                Err("Creating branches is not yet supported on remote connections".to_string())
+            }
+            BackendState::Local(m) => {
+                let repo = m.lock().unwrap();
+                repo.create_branch(&name, &oid).map_err(|e| e.to_string())
+            }
+        }
+    }
+    .await;
+    log_ipc_call("create_branch", start, &result);
+    result
+}
+
+#[tauri::command]
 pub async fn write_file_to_workdir(
     path: String,
     content: String,

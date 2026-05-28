@@ -148,6 +148,7 @@ function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesN
 	const isSessionActive = useReviewStore((s) => s.isSessionActive);
 	const startComment = useReviewStore((s) => s.startComment);
 	const addComment = useReviewStore((s) => s.addComment);
+	const updateFileDiffContent = useSelectionStore((s) => s.updateFileDiffContent);
 	const [edited, setEdited] = useState(false);
 
 	// Toggle readOnly when editMode changes
@@ -194,6 +195,7 @@ function FileDiffSection({ content, editMode, commentedLinesOld, commentedLinesN
 	async function applyEdit(filePath: string, oldContent: string, newContent: string) {
 		try {
 			await writeFileToWorkdir(filePath, newContent);
+			updateFileDiffContent(filePath, newContent);
 			if (isSessionActive) {
 				const lines = newContent.split("\n");
 				const oldLines = oldContent.split("\n");

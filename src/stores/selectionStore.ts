@@ -62,6 +62,8 @@ interface SelectionState {
 	clearSelection: () => void;
 	restoreSelection: (commitOids: string[], includeWorkingTree: boolean) => void;
 	ensureFileSelected: (filePath: string) => void;
+	updateFileDiffContent: (filePath: string, newContent: string) => void;
+	refreshCommits: () => Promise<void>;
 }
 
 function loadRecentRepos(): RecentRepo[] {
@@ -400,6 +402,29 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 		set({ selectedFilePaths: newPaths });
 		fetchFileContents(newPaths, { ...state, selectedFilePaths: newPaths });
 	},
+
+	// Keep the cached diff content in sync with manual edits so reselecting a
+	// file after editing still shows the edited content (the backend reads
+	// content from the commit, not the working tree).
+	updateFileDiffContent: (filePath: string, newContent: string) => {
+		const state = get();
+		const existing = state.fileDiffContents.get(filePath);
+		if (!existing) return;
+		const newMap = new Map(state.fileDiffContents);
+		newMap.set(filePath, { ...existing, new_content: newContent });
+		set({ fileDiffContents: newMap });
+	},
+
+	refreshCommits: async () => {
+		const state = get();
+		if (!state.repoPath) return;
+		try {
+			const commits = await getCommits(50);
+			set({ commits });
+		} catch (e) {
+			set({ error: String(e) });
+		}
+	},
 }));
 
 function buildRange(
@@ -483,12 +508,11 @@ async function fetchFileContents(
 		for (const result of results) {
 			newMap.set(result.path, result);
 		}
-		// Remove deselected
-		for (const key of newMap.keys()) {
-			if (!selectedPaths.has(key)) {
-				newMap.delete(key);
-			}
-		}
+		// Keep cached entries for deselected files. Manual edits made in the
+		// editor are saved to disk and reflected back into this cache, but the
+		// backend's get_file_diff_content reads from the commit rather than
+		// the working tree — so dropping the cache on deselect and refetching
+		// on reselect would silently revert the edits in the diff view.
 		useSelectionStore.setState({ fileDiffContents: newMap, isDiffLoading: false });
 	} catch (e) {
 		useSelectionStore.setState({ isDiffLoading: false, error: String(e) });

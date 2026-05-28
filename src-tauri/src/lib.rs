@@ -102,6 +102,7 @@ pub fn run() {
             commands::git::get_file_diff_content,
             commands::git::get_file_at_revision,
             commands::git::write_file_to_workdir,
+            commands::git::create_branch,
             commands::remote::open_remote_repo,
             commands::remote::disconnect_remote,
             commands::remote::list_profiles,
