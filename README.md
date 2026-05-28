@@ -59,3 +59,79 @@ Tauri. Two things break without it:
 
 The batch file loads `vcvars64.bat`, prepends `%USERPROFILE%\.cargo\bin` to
 `PATH`, then runs `npm run tauri dev` — so cargo always sees the correct linker.
+
+## Releasing a new version
+
+Releases ship via two scripts: [`scripts/release.sh`](scripts/release.sh) builds
+and uploads a per-platform artifact to a draft GitHub Release, and
+[`scripts/finalize-release.sh`](scripts/finalize-release.sh) publishes the
+release and updates the Tauri updater manifest.
+
+### Prerequisites
+
+- `gh` CLI installed and authenticated (`brew install gh` / `winget install GitHub.cli`)
+- `~/.tauri/readcode.env` containing the Tauri updater signing key:
+  ```
+  TAURI_SIGNING_PRIVATE_KEY=<base64_key>
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD=
+  ```
+  Generate a keypair once with `npm run tauri signer generate -- -w ~/.tauri/readcode.key`.
+- On Mac, also add Apple codesigning + notarization credentials to that env file:
+  ```
+  APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+  APPLE_ID="your-apple-id@example.com"
+  APPLE_PASSWORD="app-specific-password"
+  APPLE_TEAM_ID="TEAMID"
+  ```
+- Rust target `aarch64-apple-darwin` on Mac: `rustup target add aarch64-apple-darwin`
+- GitHub Pages enabled on `dsyang/readcode` (branch `gh-pages`, path `/`) — one-time setup
+
+### Step 1 — Build & upload (run once per platform)
+
+```bash
+# On Mac — builds signed/notarized .dmg + updater tarball
+./scripts/release.sh <version>
+
+# On Windows Git Bash — builds the .msi
+./scripts/release.sh <version>
+```
+
+Each invocation:
+
+1. Runs the full test suite (`npm run test:all`).
+2. Bumps the version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+3. Builds the platform bundle (Mac signs + notarizes via Apple, then staples).
+4. Creates a draft GitHub Release `v<version>` on `dsyang/readcode` if it doesn't exist.
+5. Uploads the installer, updater bundle, and `.sig` signature.
+
+### Step 2 — Finalize (run once, after both platforms have uploaded)
+
+```bash
+./scripts/finalize-release.sh <version>
+```
+
+This:
+
+1. Downloads the `.sig` blobs and asset names from the draft release.
+2. Constructs `latest.json` (the Tauri updater manifest) with the inline
+   signatures and the post-publish asset URLs.
+3. Publishes the GitHub Release (drops the draft flag) **before** pushing the
+   manifest — otherwise the URLs in `latest.json` 404 during the race window.
+4. Pushes `latest.json` to the `gh-pages` branch, served at
+   <https://dsyang.github.io/readcode/latest.json>.
+
+Older clients see the update prompt on next launch.
+
+### Mac-only or Windows-only releases
+
+`finalize-release.sh` skips any platform missing its `.sig` and refuses to
+publish an empty manifest. So you can ship a Mac-only or Windows-only release —
+just expect a `Warning: No .msi.sig found` (or `.tar.gz.sig`) line, and existing
+users on the unbuilt platform won't be offered an update.
+
+### Commit the version bump
+
+`release.sh` edits `package.json`, `tauri.conf.json`, and `src-tauri/Cargo.toml`
+in place but doesn't commit. After a successful release, commit those bumps
+(and the updated `Cargo.lock`) to `main` so the source tree matches the
+shipped version.
